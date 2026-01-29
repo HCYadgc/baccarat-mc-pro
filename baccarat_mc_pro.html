@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>百家樂勝率 PRO（8副牌｜扣牌｜蒙地卡羅）</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif; margin:18px; line-height:1.4;}
+    h1{margin:0 0 8px;}
+    .muted{color:#666;}
+    .warn{color:#b00020;}
+    .ok{color:#0b6;}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .card{border:1px solid #ddd; border-radius:12px; padding:14px; margin-top:12px;}
+    textarea,input,button,select{font:inherit;}
+    textarea{width:640px; max-width:100%; height:92px; padding:10px; border-radius:10px; border:1px solid #ccc;}
+    input[type="number"]{padding:8px 10px; border-radius:10px; border:1px solid #ccc; width:140px;}
+    button{padding:10px 12px; border-radius:10px; border:1px solid #ccc; background:#fff; cursor:pointer;}
+    button:hover{background:#f6f6f6;}
+    button.primary{border-color:#111; background:#111; color:#fff;}
+    button.primary:hover{background:#000;}
+    button.danger{border-color:#b00020; color:#b00020;}
+    .pill{display:inline-block; padding:2px 10px; border-radius:999px; border:1px solid #ddd; background:#fafafa;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+    .grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap:10px;}
+    .big{font-size:1.15rem;}
+    .kbd{padding:1px 6px; border:1px solid #ddd; border-bottom-width:2px; border-radius:6px; background:#fafafa; font-family:ui-monospace,monospace;}
+    .list{max-height:220px; overflow:auto; border:1px solid #eee; border-radius:10px; padding:10px; background:#fcfcfc;}
+    .hr{height:1px; background:#eee; margin:10px 0;}
+    .progress{height:10px; background:#eee; border-radius:999px; overflow:hidden;}
+    .bar{height:100%; width:0%; background:#111;}
+    .small{font-size:0.92rem;}
+  </style>
+</head>
+<body>
+  <h1>百家樂勝率 PRO（8副牌｜扣除已開牌｜蒙地卡羅）</h1>
+  <div class="muted small">
+    輸入牌例：<span class="pill mono">A 10 J Q K 3 7</span> 或 <span class="pill mono">A♠ 10H KD 3d</span>（花色會自動忽略）
+    <br/>
+    快捷鍵：<span class="kbd">Enter</span>=加入暫存｜<span class="kbd">M</span>=計算下一局｜<span class="kbd">Esc</span>=清暫存｜<span class="kbd">R</span>=重置
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-start;">
+      <div style="flex:1; min-width:280px;">
+        <div class="big"><b>步驟 1：輸入已開過的牌</b></div>
+        <textarea id="inputCards" placeholder="可貼上多行；可含花色，例如：A♠ 10H KD&#10;3d, 7c ..."></textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnAdd">加入已開牌（Enter）</button>
+          <button id="btnCompute" class="primary">計算下一局（M）</button>
+          <button id="btnUndo">清空本輪暫存（Esc）</button>
+          <button id="btnReset" class="danger">重置牌靴（R）</button>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <label>模擬次數：</label>
+          <input id="trials" type="number" min="1000" step="1000" value="200000" />
+          <select id="preset">
+            <option value="">快速選擇</option>
+            <option value="50000">50,000（快）</option>
+            <option value="200000">200,000（平衡）</option>
+            <option value="500000">500,000（穩）</option>
+            <option value="1000000">1,000,000（更穩）</option>
+          </select>
+          <button id="btnExport">匯出狀態 JSON</button>
+          <button id="btnImport">匯入狀態 JSON</button>
+        </div>
+
+        <div id="msg" style="margin-top:10px;"></div>
+
+        <div style="margin-top:10px;">
+          <div class="muted small">計算進度（大次數時會顯示）：</div>
+          <div class="progress"><div id="bar" class="bar"></div></div>
+        </div>
+      </div>
+
+      <div style="flex:1; min-width:280px;">
+        <div class="big"><b>本輪暫存（尚未扣除）</b></div>
+        <div id="buffer" class="mono list"></div>
+
+        <div class="hr"></div>
+
+        <div class="big"><b>狀態</b></div>
+        <div>回合：<span id="roundNo" class="mono"></span></div>
+        <div>剩餘張數：<span id="remain" class="mono"></span></div>
+
+        <div class="hr"></div>
+
+        <div class="big"><b>扣牌後各點數張數</b></div>
+        <div id="shoeCounts" class="mono list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="big"><b>步驟 2：下一局估計勝率（扣除已開牌後）</b></div>
+    <div class="grid" style="margin-top:10px;">
+      <div>
+        <div class="muted">閒 (Player) 勝率</div>
+        <div id="pProb" class="big mono">—</div>
+      </div>
+      <div>
+        <div class="muted">莊 (Banker) 勝率</div>
+        <div id="bProb" class="big mono">—</div>
+      </div>
+      <div>
+        <div class="muted">和 (Tie) 機率</div>
+        <div id="tProb" class="big mono">—</div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="big"><b>歷史紀錄</b></div>
+    <div id="history" class="mono list"></div>
+  </div>
+
+<script>
+(() => {
+  // ---------- 常數 ----------
+  const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+  const IDX = new Map(RANKS.map((r,i)=>[r,i]));
+  const MAX_DRAW = 6;
+
+  // ---------- 牌靴 ----------
+  function newShoeCounts(nDecks=8){
+    const counts = new Int16Array(RANKS.length);
+    for(let i=0;i<counts.length;i++) counts[i] = 4*nDecks;
+    return counts;
+  }
+  function shoeSize(counts){
+    let s=0; for(let i=0;i<counts.length;i++) s+=counts[i]; return s;
+  }
+  function formatCounts(counts){
+    return RANKS.map((r,i)=>`${r}:${counts[i]}`).join("  ");
+  }
+
+  // ---------- 輸入解析（升級：忽略花色/符號/換行） ----------
+  // 允許：A,2..10,J,Q,K；可帶花色：A♠ / 10h / kd / Q♦ 等
+  function normalizeToken(tok){
+    let t = tok.trim().toUpperCase();
+    if(!t) return null;
+
+    // 去掉常見花色與非字元（保留 A/2-10/JQK）
+    // 例如：A♠ -> A；10H -> 10；KD -> K
+    t = t.replace(/[♠♥♦♣SHDC]/g, "");
+    t = t.replace(/[^A-Z0-9]/g, "");
+
+    if(t === "1") t = "A"; // 有人會打 1 當 A
+    if(IDX.has(t)) return t;
+
+    // 有人可能貼上 "T" 當 10
+    if(t === "T") return "10";
+
+    return null;
+  }
+
+  function parseCards(text){
+    const raw = text.replace(/,/g," ").replace(/\n/g," ").trim();
+    if(!raw) return [];
+    const toks = raw.split(/\s+/);
+    const out = [];
+    for(const tok of toks){
+      const t = normalizeToken(tok);
+      if(!t) throw new Error(`不認得的牌：${tok}（請用 A 2-10 J Q K；可帶花色）`);
+      out.push(t);
+    }
+    return out;
+  }
+
+  function removeCardsFromShoe(counts, cards){
+    for(const r of cards){
+      const i = IDX.get(r);
+      if(counts[i] <= 0) throw new Error(`牌靴裡 ${r} 已經沒了，不能再扣。`);
+      counts[i]--;
+    }
+  }
+
+  // ---------- 百家樂點數 ----------
+  function rankValue(rank){
+    if(rank==="A") return 1;
+    if(rank==="10"||rank==="J"||rank==="Q"||rank==="K") return 0;
+    return Number(rank);
+  }
+  function handTotal(cards){
+    let s=0; for(const r of cards) s += rankValue(r);
+    return s % 10;
+  }
+
+  // ---------- 補牌規則 ----------
+  function playOneRoundFromDraw(draw6){
+    const p = [draw6[0], draw6[1]];
+    const b = [draw6[2], draw6[3]];
+    let pt = handTotal(p);
+    let bt = handTotal(b);
+
+    if(pt===8||pt===9||bt===8||bt===9){
+      if(pt>bt) return 0;
+      if(bt>pt) return 1;
+      return 2;
+    }
+
+    let idx = 4;
+    let pThird = null;
+
+    if(pt <= 5){
+      pThird = draw6[idx++]; p.push(pThird);
+      pt = handTotal(p);
+    }
+
+    bt = handTotal(b);
+    if(pThird === null){
+      if(bt <= 5){
+        b.push(draw6[idx++]);
+        bt = handTotal(b);
+      }
+    }else{
+      const pv = rankValue(pThird);
+      if(bt <= 2){
+        b.push(draw6[idx++]);
+      }else if(bt === 3 && pv !== 8){
+        b.push(draw6[idx++]);
+      }else if(bt === 4 && (pv>=2 && pv<=7)){
+        b.push(draw6[idx++]);
+      }else if(bt === 5 && (pv>=4 && pv<=7)){
+        b.push(draw6[idx++]);
+      }else if(bt === 6 && (pv===6 || pv===7)){
+        b.push(draw6[idx++]);
+      }
+      bt = handTotal(b);
+    }
+
+    if(pt>bt) return 0;
+    if(bt>pt) return 1;
+    return 2;
+  }
+
+  // ---------- WebCrypto RNG：均勻整數（拒絕抽樣避免偏差） ----------
+  function randIntBelow(n){
+    const max = 0x100000000; // 2^32
+    const limit = max - (max % n);
+    const buf = new Uint32Array(1);
+    while(true){
+      crypto.getRandomValues(buf);
+      const x = buf[0];
+      if(x < limit) return x % n;
+    }
+  }
+
+  // ---------- 展開 deck（只做一次），每局用「部分洗牌 + 還原」(超快、零拷貝) ----------
+  function expandDeckFromCounts(counts){
+    const deck = [];
+    for(let i=0;i<counts.length;i++){
+      for(let k=0;k<counts[i];k++) deck.push(RANKS[i]);
+    }
+    return deck;
+  }
+
+  function draw6FastInPlace(deck, swapsJ){
+    // partial Fisher-Yates：只打亂前 6 張
+    // swapsJ[i] 記錄 i 與 j 的 j 值，用來回復原狀
+    const n = deck.length;
+    for(let i=0;i<MAX_DRAW;i++){
+      const j = i + randIntBelow(n - i);
+      swapsJ[i] = j;
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+    // 取前6張（注意：這裡不新建 array 會更快，但 playOneRound 需要索引）
+    // 直接回傳一個固定長度陣列
+    return [deck[0],deck[1],deck[2],deck[3],deck[4],deck[5]];
+  }
+
+  function restoreDeck(deck, swapsJ){
+    // 反向 swap 回來
+    for(let i=MAX_DRAW-1;i>=0;i--){
+      const j = swapsJ[i];
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+  }
+
+  // ---------- 蒙地卡羅估計（含進度條更新） ----------
+  function estimateProbs(counts, trials, onProgress){
+    const m = shoeSize(counts);
+    if(m < 6) throw new Error("剩餘牌不足以模擬（至少要 >=6 張）。");
+
+    const deck = expandDeckFromCounts(counts);
+    const swapsJ = new Int32Array(MAX_DRAW);
+
+    let pw=0, bw=0, tw=0;
+
+    // 每隔一段更新進度，避免太頻繁卡 UI
+    const step = Math.max(5000, Math.floor(trials / 200));
+
+    for(let k=1;k<=trials;k++){
+      const draw6 = draw6FastInPlace(deck, swapsJ);
+      const out = playOneRoundFromDraw(draw6);
+      if(out===0) pw++;
+      else if(out===1) bw++;
+      else tw++;
+
+      restoreDeck(deck, swapsJ);
+
+      if(onProgress && (k % step === 0 || k === trials)){
+        onProgress(k / trials);
+      }
+    }
+
+    const total = pw+bw+tw;
+    return [pw/total, bw/total, tw/total];
+  }
+
+  // ---------- UI 狀態 ----------
+  let shoe = newShoeCounts(8);
+  let buffer = [];
+  let roundNo = 1;
+  let history = []; // {round, remain, trials, p,b,t}
+
+  // ---------- UI 元件 ----------
+  const elInput = document.getElementById("inputCards");
+  const elTrials = document.getElementById("trials");
+  const elPreset = document.getElementById("preset");
+  const elMsg = document.getElementById("msg");
+  const elBuffer = document.getElementById("buffer");
+  const elRound = document.getElementById("roundNo");
+  const elRemain = document.getElementById("remain");
+  const elCounts = document.getElementById("shoeCounts");
+  const elP = document.getElementById("pProb");
+  const elB = document.getElementById("bProb");
+  const elT = document.getElementById("tProb");
+  const elHist = document.getElementById("history");
+  const elBar = document.getElementById("bar");
+
+  function setMsg(text, kind="muted"){
+    elMsg.className = kind;
+    elMsg.textContent = text;
+  }
+
+  function pct(x){ return (x*100).toFixed(4) + "%"; }
+
+  function render(){
+    elRound.textContent = String(roundNo);
+    elRemain.textContent = String(shoeSize(shoe));
+    elCounts.textContent = formatCounts(shoe);
+    elBuffer.textContent = buffer.length ? buffer.join(" ") : "（空）";
+
+    if(history.length === 0){
+      elHist.textContent = "（尚無紀錄）";
+    }else{
+      elHist.textContent = history.slice().reverse().map(h =>
+        `#${h.round}  remain=${h.remain}  trials=${h.trials}  P=${pct(h.p)}  B=${pct(h.b)}  T=${pct(h.t)}`
+      ).join("\n");
+    }
+  }
+
+  function resetProgress(){ elBar.style.width = "0%"; }
+  function setProgress(frac){ elBar.style.width = `${Math.max(0,Math.min(1,frac))*100}%`; }
+
+  // ---------- 行為 ----------
+  function addBufferFromInput(){
+    try{
+      const cards = parseCards(elInput.value);
+      if(cards.length===0){ setMsg("請先輸入牌再加入。", "warn"); return; }
+      buffer.push(...cards);
+      elInput.value = "";
+      setMsg(`已加入 ${cards.length} 張。本輪暫存共 ${buffer.length} 張。`, "ok");
+      render();
+    }catch(e){
+      setMsg(e.message, "warn");
+    }
+  }
+
+  function computeNext(){
+    try{
+      resetProgress();
+      const trials = Number(elTrials.value);
+      if(!Number.isFinite(trials) || trials < 1000){
+        setMsg("模擬次數請輸入 >= 1000 的數字。", "warn"); return;
+      }
+
+      // 扣牌
+      if(buffer.length){
+        removeCardsFromShoe(shoe, buffer);
+      }
+      buffer = [];
+
+      const remain = shoeSize(shoe);
+      if(remain < 6){
+        setMsg("剩餘牌不足以模擬下一局（<6 張），已停止。", "warn");
+        render();
+        return;
+      }
+
+      setMsg("計算中…（PRO 快速版）", "muted");
+      render();
+
+      // 讓 UI 先更新
+      setTimeout(() => {
+        try{
+          const [p,b,t] = estimateProbs(shoe, trials, frac => setProgress(frac));
+          elP.textContent = pct(p);
+          elB.textContent = pct(b);
+          elT.textContent = pct(t);
+
+          history.push({round: roundNo, remain, trials, p,b,t});
+          setMsg(`完成：已扣除本輪已開牌並估計下一局勝率（${trials.toLocaleString()} 次）。`, "ok");
+
+          roundNo++;
+          render();
+        }catch(e){
+          setMsg(e.message, "warn");
+          render();
+        }
+      }, 30);
+
+    }catch(e){
+      setMsg(e.message, "warn");
+    }
+  }
+
+  function resetAll(){
+    shoe = newShoeCounts(8);
+    buffer = [];
+    roundNo = 1;
+    history = [];
+    elP.textContent = elB.textContent = elT.textContent = "—";
+    resetProgress();
+    setMsg("已重置為 8 副牌新牌靴。", "ok");
+    render();
+  }
+
+  function clearBuffer(){
+    buffer = [];
+    setMsg("已清空本輪暫存。", "ok");
+    render();
+  }
+
+  // ---------- 匯出/匯入 ----------
+  function exportState(){
+    const obj = {
+      version: "baccarat-mc-pro-1",
+      roundNo,
+      shoe: Array.from(shoe),
+      buffer: buffer.slice(),
+      history: history.slice()
+    };
+    const json = JSON.stringify(obj, null, 2);
+    // 用 prompt 讓你直接複製（最省事）
+    window.prompt("複製以下 JSON（可貼到記事本保存）：", json);
+  }
+
+  function importState(){
+    const json = window.prompt("貼上先前匯出的 JSON：");
+    if(!json) return;
+    try{
+      const obj = JSON.parse(json);
+      if(!obj || !obj.shoe || !Array.isArray(obj.shoe) || obj.shoe.length !== RANKS.length){
+        throw new Error("JSON 格式不正確（缺少 shoe 或長度不對）。");
+      }
+      shoe = new Int16Array(obj.shoe.map(x => Number(x)));
+      roundNo = Number(obj.roundNo || 1);
+      buffer = Array.isArray(obj.buffer) ? obj.buffer.map(String) : [];
+      history = Array.isArray(obj.history) ? obj.history : [];
+      setMsg("已匯入狀態。", "ok");
+      render();
+    }catch(e){
+      setMsg("匯入失敗：" + e.message, "warn");
+    }
+  }
+
+  // ---------- 綁定事件 ----------
+  document.getElementById("btnAdd").addEventListener("click", addBufferFromInput);
+  document.getElementById("btnCompute").addEventListener("click", computeNext);
+  document.getElementById("btnUndo").addEventListener("click", clearBuffer);
+  document.getElementById("btnReset").addEventListener("click", resetAll);
+  document.getElementById("btnExport").addEventListener("click", exportState);
+  document.getElementById("btnImport").addEventListener("click", importState);
+
+  elPreset.addEventListener("change", () => {
+    if(elPreset.value){
+      elTrials.value = elPreset.value;
+      setMsg(`已套用模擬次數：${Number(elPreset.value).toLocaleString()}`, "ok");
+    }
+    elPreset.value = "";
+  });
+
+  // Enter：加入暫存（避免按 Enter 換行太常見，這裡用 Ctrl+Enter 更保守？）
+  // 你要「更方便」，我做成：Enter 單行時加入；多行就照常換行。
+  elInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && !e.shiftKey){
+      // 如果裡面沒有換行，Enter 就當作加入
+      const hasNewline = elInput.value.includes("\n");
+      if(!hasNewline){
+        e.preventDefault();
+        addBufferFromInput();
+      }
+    }
+  });
+
+  // 全域快捷鍵：M / R / Esc
+  window.addEventListener("keydown", (e) => {
+    // 避免在輸入框輸入英文字母時被搶走（但 M/R/Esc 很實用）
+    if(e.key === "Escape"){ clearBuffer(); }
+    else if(e.key.toUpperCase() === "M"){ computeNext(); }
+    else if(e.key.toUpperCase() === "R"){ resetAll(); }
+  });
+
+  // 初始
+  render();
+  setMsg("準備就緒：輸入已開過的牌 → Enter 加入（可多次）→ 按 M 計算下一局。", "ok");
+})();
+</script>
+</body>
+</html>
