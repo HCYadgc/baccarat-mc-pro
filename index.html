@@ -109,7 +109,19 @@
       border-radius:12px;padding:10px 10px;font-weight:900;outline:none;
     }
     .hint{color:var(--muted);font-size:13px;line-height:1.35;opacity:.9;margin-top:8px;}
-  </style>
+/* 🔒 防止畫面左右變寬 */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* 🧱 pills 自動換行，避免撐版 */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+    </style>
 </head>
 
 <body>
