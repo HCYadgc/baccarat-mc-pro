@@ -332,13 +332,35 @@
 
       <div class="hr"></div>
 
-      <div class="rowline" style="justify-content:flex-start; gap:8px;">
-        <span class="muted">記錄上一局結果（用來追路/倍壓/牌路修正）</span>
-        <button class="btn small" id="recB">莊</button>
-        <button class="btn small" id="recP">閒</button>
-        <button class="btn small" id="recT">和</button>
-        <button class="btn small danger" id="recClear">清空紀錄</button>
-      </div>
+     <div class="rowline" style="justify-content:space-between; gap:10px;">
+  <div>
+    <div class="muted">上局勝家</div>
+    <div class="mono" id="lastWinner">—</div>
+    <div class="muted mono" id="lastStreak">—</div>
+  </div>
+<div class="hr"></div>
+
+<div class="rowline" style="justify-content:flex-start; gap:10px; align-items:center;">
+  <div>
+    <div class="muted">近 N 把實際命中率回測</div>
+    <div class="muted" style="font-size:12px; opacity:.9;">依「你當時畫面建議」vs「你點的結果」計算</div>
+  </div>
+
+  <div class="rowline" style="gap:8px; justify-content:flex-start;">
+    <span class="muted">N</span>
+    <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
+  </div>
+</div>
+
+<div class="mono" id="backLine" style="margin-top:8px;">—</div>
+  <div class="rowline" style="justify-content:flex-start; gap:8px;">
+    <span class="muted">點一下就記錄（會影響牌路/追路/倍壓）</span>
+    <button class="btn small" id="recB">莊</button>
+    <button class="btn small" id="recP">閒</button>
+    <button class="btn small" id="recT">和</button>
+    <button class="btn small danger" id="recClear">清空</button>
+  </div>
+</div>
 
       <div class="hint">
         ⚠️ 激進策略會讓波動變很大（尤其馬丁/追路）。我用「單位」表示，不建議用真金額硬追。
@@ -355,9 +377,16 @@
 //===========================
 // ====== 激進策略狀態 ======
 const betState = {
-  history: [],   // 'B'|'P'|'T'
-  lastPick: null, // 'B'|'P'|'T'
-  unit: 1
+  history: [],
+  lastPick: null,
+  unit: 1,
+  logs: [] // ✅ 回測：每把 {pick, result, unit, net}
+};
+// ✅ 記住「上次計算出的勝率」（用來按上局勝家後即時更新建議，不用重跑MC）
+let lastCalc = {
+  has: false,
+  pP: 0, pB: 0, pT: 0,      // 原始MC
+  aP: 0, aB: 0, aT: 0       // 修正後
 };
 
 function lastNonTieStreak(hist){
@@ -493,7 +522,32 @@ function applyRoadAdjust(pP, pB, pT, hist){
       notes.push(`和偏高+${push.toFixed(3)}(tie ${Math.round(f.tieRate*100)}%)`);
     }
   }
+function applyLastWinnerBias(pP, pB, pT){
+  const streak = lastNonTieStreak(betState.history);
+  let aP = pP, aB = pB, aT = pT;
 
+  if (!streak.side || streak.len < 2){
+    return { aP, aB, aT };
+  }
+
+  const step = 0.0015;               // 0.15%
+  const cap = 0.006;                 // 上限 0.6%
+  const bias = Math.min(streak.len * step, cap);
+
+  if (streak.side === 'B'){
+    aB += bias;
+    aP -= bias;
+  } else if (streak.side === 'P'){
+    aP += bias;
+    aB -= bias;
+  }
+
+  // 保護：不讓任何值 < 0
+  aP = Math.max(0, aP);
+  aB = Math.max(0, aB);
+
+  return { aP, aB, aT };
+}
   // 套用
   let aB = pB + dB;
   let aP = pP + dP;
@@ -594,20 +648,116 @@ function updateBetUI(pP, pB, pT){
 }
 
 // 記錄結果按鈕
+function updateLastWinnerUI(){
+  if (!betState.history.length){
+    setText('lastWinner', '—');
+    setText('lastStreak', '—');
+    return;
+  }
+  const last = betState.history[betState.history.length - 1];
+  setText('lastWinner', `上局：${sideName(last)}`);
+
+  const streak = lastNonTieStreak(betState.history);
+  if (streak.side){
+    setText('lastStreak', `目前：${sideName(streak.side)} 連 ${streak.len}`);
+  } else {
+    setText('lastStreak', `目前：—`);
+  }
+}
+
+// ====== 記錄結果按鈕（加入顯示 + 加入計算）======
+function calcBacktest(N){
+  const logs = betState.logs || [];
+  if (!logs.length){
+    setText('backLine', '—');
+    return;
+  }
+
+  const n = Math.max(5, Math.min(500, parseInt(N,10) || 30));
+  const last = logs.slice(-n);
+
+  let win=0, loss=0, push=0, skip=0;
+  let netUnits = 0;
+
+  for (const x of last){
+    // 沒有建議就不算
+    if (!x.pick){ skip++; continue; }
+
+    // 只回測「莊/閒」：如果建議是和（T）就略過或當 skip
+    if (x.pick === 'T'){ skip++; continue; }
+
+    // 結果是和：Push（不輸不贏）
+    if (x.result === 'T'){
+      push++;
+      continue;
+    }
+
+    // 命中判定
+    if (x.result === x.pick){
+      win++;
+      netUnits += (x.unit || 1);      // 贏：+單位
+    } else {
+      loss++;
+      netUnits -= (x.unit || 1);      // 輸：-單位
+    }
+  }
+
+  const denom = win + loss;
+  const hit = denom ? (win/denom) : 0;
+
+  setText(
+    'backLine',
+    `回測近 ${last.length} 把：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜略過 ${skip}｜命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits}`
+  );
+}
 function recordResult(r){
+  // ① 記錄實際結果（牌路）
   betState.history.push(r);
 
-  const martCap = Math.max(2, parseInt(document.getElementById('martCap').value,10) || 8);
-  const strategy = document.getElementById('strategy').value;
+  // ② 顯示「上局勝家 / 目前連線」
+  updateLastWinnerUI();
+
+  // ③ 馬丁：依上一把建議方向的輸贏更新單位
+  const martCap = Math.max(2, parseInt(document.getElementById('martCap')?.value,10) || 8);
+  const strategy = document.getElementById('strategy')?.value;
 
   if (strategy === 'martingale' && betState.lastPick){
     if (r === 'T'){
-      // 和：單位不變
+      // 和：push，不變
     } else if (r === betState.lastPick){
       betState.unit = 1;
     } else {
       betState.unit = Math.min(betState.unit * 2, martCap);
     }
+  }
+
+  // ④ 回測記錄（⚠️ 一定要在這裡，因為 lastPick 還在）
+  betState.logs.push({
+    pick: betState.lastPick,
+    result: r,
+    unit: betState.unit || 1
+  });
+
+  // ⑤ 若已有算過機率 → 立即用「修正後機率」更新下注建議
+  if (lastCalc.has){
+    updateBetUI(lastCalc.aP, lastCalc.aB, lastCalc.aT);
+  }
+
+  // ✅ ⑥【就是這裡】更新「近 N 把實戰命中率回測」
+  const N = document.getElementById('backN')?.value || 30;
+  calcBacktest(N);
+}
+
+lastCalc = {
+  has: true,
+  pP, pB, pT,        // 原始 MC
+  aP: adj.aP,        // 修正後（實戰用）
+  aB: adj.aB,
+  aT: adj.aT
+};
+// ✅ 更新回測顯示
+const N = document.getElementById('backN')?.value || 30;
+calcBacktest(N);
   }
 }
 
