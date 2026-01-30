@@ -559,10 +559,6 @@ function initNewShoe(){
   renderAll();
 }
 
-  state.inited = true;
-  renderAll();
-}
-
 function canRemoveValue(v){
   return v!==null && v>=0 && v<=9 && state.shoe[v] > 0;
 }
