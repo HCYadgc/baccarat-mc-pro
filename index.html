@@ -711,7 +711,7 @@ async function runMC(){
   const line =
     `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}  → 建議：${pick.k}（EV 最大）`;
   setText('evLine', line);
-updateBetUI(pP, pB, pT);
+if (typeof updateBetUI === 'function') updateBetUI(pP, pB, pT);
 clearSeenUIOnly();
   if (bad>0){
     console.log('bad trials:', bad);
