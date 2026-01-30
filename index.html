@@ -691,19 +691,44 @@ clearSeenUIOnly();
   }
 }
 
-document.querySelectorAll('[data-r]').forEach(btn=>{
-  btn.addEventListener('click', ()=> addSeenRank(btn.getAttribute('data-r')));
-});
-document.getElementById('btnUndo').addEventListener('click', undo);
-document.getElementById('btnClear').addEventListener('click', clearSeen);
-document.getElementById('btnNewShoe').addEventListener('click', initNewShoe);
-document.getElementById('btnCalc').addEventListener('click', runMC);
-document.getElementById('commission').addEventListener('change', ()=> {
-  // 重新按計算即可更新建議；這裡不自動跑，避免手機卡
-});
+function on(id, ev, fn){
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(ev, fn);
+}
 
-// 初始化
-initNewShoe();
+window.addEventListener('DOMContentLoaded', () => {
+
+  // ✅ 牌按鈕：事件委派（最穩）
+  const pad = document.querySelector('.pad');
+  if (pad){
+    pad.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-r]');
+      if (!btn) return;
+      addSeenRank(btn.getAttribute('data-r'));
+    });
+  }
+
+  on('btnUndo', 'click', undo);
+  on('btnClear', 'click', clearSeen);
+  on('btnNewShoe', 'click', initNewShoe);
+  on('btnCalc', 'click', runMC);
+
+  // 激進策略紀錄按鈕（有就綁，沒有就跳過，不會炸）
+  on('recB', 'click', ()=> recordResult('B'));
+  on('recP', 'click', ()=> recordResult('P'));
+  on('recT', 'click', ()=> recordResult('T'));
+  on('recClear','click', ()=>{
+    betState.history = [];
+    betState.unit = 1;
+    betState.lastPick = null;
+    setText('betLine', '—');
+  });
+
+  on('commission', 'change', ()=>{});
+
+  // 初始化
+  initNewShoe();
+});
 </script>
 </body>
 </html>
