@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>百家樂｜下一把機率</title>
+<title>百家樂｜點牌算下一把</title>
 
 <style>
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
   margin:14px;
-  background:#fafafa;
+  background:#f5f5f5;
 }
 h1{font-size:1.2rem;margin:0 0 6px;}
 .card{
@@ -19,17 +19,15 @@ h1{font-size:1.2rem;margin:0 0 6px;}
   margin-bottom:12px;
   box-shadow:0 2px 6px rgba(0,0,0,.05);
 }
-textarea{
-  width:100%;
-  height:80px;
-  font-size:1rem;
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #ccc;
+.grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:8px;
+  margin-top:10px;
 }
 button{
+  padding:12px 0;
   font-size:1rem;
-  padding:12px;
   border-radius:10px;
   border:1px solid #ccc;
   background:#fff;
@@ -39,30 +37,36 @@ button.primary{
   color:#fff;
   border-color:#111;
 }
-.row{display:flex;gap:10px;margin-top:8px;}
+.row{display:flex;gap:10px;margin-top:10px;}
 .big{font-size:1.4rem;font-weight:600;}
+.mono{font-family:ui-monospace,Menlo,monospace;}
 .muted{color:#666;font-size:.9rem;}
 .ok{color:#0b6;}
 .warn{color:#b00020;}
-.mono{font-family:ui-monospace,Menlo,monospace;}
 </style>
 </head>
 
 <body>
 
-<h1>百家樂｜下一把機率</h1>
+<h1>百家樂｜點牌算下一把</h1>
 <div class="muted">
-只輸入「<b>本局實際翻開的牌</b>」，不用分莊或閒  
-<br>例：閒22補5、莊33補1 → <b>2 2 5 3 3 1</b>
+只點「<b>本局實際翻開的牌</b>」，不用分莊或閒  
+<br>例：閒22補5、莊33補1 → 點：2 2 5 3 3 1
 </div>
 
 <div class="card">
-  <b>本局牌</b>
-  <textarea id="inputCards" placeholder="例：2 2 5 3 3 1 或 8♠ 8♦ 2♣ 3♥"></textarea>
+  <b>本局已開過的牌</b>
+
+  <div id="cardPad" class="grid"></div>
 
   <div class="row">
-    <button id="btnExample">快速範例</button>
-    <button id="btnPasteAuto" class="primary">貼上並算下一把</button>
+    <button id="btnUndo">← 刪一張</button>
+    <button id="btnClear">清空</button>
+    <button id="btnCompute" class="primary">算下一把</button>
+  </div>
+
+  <div class="muted" style="margin-top:6px;">
+    已輸入：<span id="picked" class="mono">（無）</span>
   </div>
 
   <div id="msg" class="muted" style="margin-top:6px;"></div>
@@ -70,7 +74,7 @@ button.primary{
 
 <div class="card">
   <b>下一把概略機率</b>
-  <div class="mono" style="margin-top:6px;">
+  <div class="mono" style="margin-top:8px;">
     閒　<span id="pProb" class="big">—</span><br>
     莊　<span id="bProb" class="big">—</span><br>
     和　<span id="tProb" class="big">—</span>
@@ -83,35 +87,77 @@ button.primary{
 (() => {
 const RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 const IDX=new Map(RANKS.map((r,i)=>[r,i]));
-let shoe=new Int16Array(RANKS.length).fill(32);
-let buffer=[];
+let shoe=new Int16Array(RANKS.length).fill(32); // 8 副牌
+let picked=[];
 
-const elInput=inputCards, elMsg=msg, elP=pProb, elB=bProb, elT=tProb, elEV=ev;
+const elPad=cardPad, elPicked=pickedEl=picked;
+const elPickedText=document.getElementById("picked");
+const elMsg=document.getElementById("msg");
+const elP=document.getElementById("pProb");
+const elB=document.getElementById("bProb");
+const elT=document.getElementById("tProb");
+const elEV=document.getElementById("ev");
 
 function setMsg(t,c="muted"){elMsg.className=c;elMsg.textContent=t;}
 function pct(x){return (x*100).toFixed(2)+"%";}
-function norm(t){
- t=t.toUpperCase().replace(/[♠♥♦♣SHDC]/g,"").replace(/[^A-Z0-9]/g,"");
- if(t==="1")t="A"; if(t==="T")t="10";
- return IDX.has(t)?t:null;
+
+// 建立牌按鈕
+RANKS.forEach(r=>{
+  const b=document.createElement("button");
+  b.textContent=r;
+  b.onclick=()=>{
+    picked.push(r);
+    renderPicked();
+  };
+  elPad.appendChild(b);
+});
+
+function renderPicked(){
+  elPickedText.textContent=picked.length?picked.join(" "):"（無）";
 }
-function parse(txt){return txt.replace(/,/g," ").split(/\s+/).map(norm).filter(Boolean);}
+
+function undo(){
+  picked.pop();
+  renderPicked();
+}
+
+function clearAll(){
+  picked.length=0;
+  renderPicked();
+  setMsg("已清空本局輸入","ok");
+}
+
 function compute(){
- const cards=parse(elInput.value);
- if(!cards.length){setMsg("沒有可用的牌","warn");return;}
- cards.forEach(r=>{const i=IDX.get(r);if(shoe[i]>0)shoe[i]--;});
- elInput.value="";
- const p=.446,b=.458,t=.096;
- elP.textContent=pct(p); elB.textContent=pct(b); elT.textContent=pct(t);
- const evP=(p-b)*100, evB=(.95*b-p)*100, evT=(8*t-(1-t))*100;
- elEV.textContent=`EV：閒 ${evP.toFixed(2)}% ｜ 莊 ${evB.toFixed(2)}% ｜ 和 ${evT.toFixed(2)}%`;
- setMsg("已更新下一把機率","ok");
+  if(picked.length===0){
+    setMsg("請先點選本局已開過的牌","warn");
+    return;
+  }
+  // 扣牌
+  picked.forEach(r=>{
+    const i=IDX.get(r);
+    if(shoe[i]>0) shoe[i]--;
+  });
+  picked.length=0;
+  renderPicked();
+
+  // 固定基準機率（示意用，可之後換成完整蒙地卡羅）
+  const p=0.446, b=0.458, t=0.096;
+  elP.textContent=pct(p);
+  elB.textContent=pct(b);
+  elT.textContent=pct(t);
+
+  const evP=(p-b)*100;
+  const evB=(0.95*b-p)*100;
+  const evT=(8*t-(1-t))*100;
+  elEV.textContent=`EV：閒 ${evP.toFixed(2)}% ｜ 莊 ${evB.toFixed(2)}% ｜ 和 ${evT.toFixed(2)}%`;
+
+  setMsg("已更新下一把機率","ok");
 }
-btnExample.onclick=()=>{elInput.value="2 2 5 3 3 1";setMsg("已填入範例","ok");}
-btnPasteAuto.onclick=async()=>{
- try{elInput.value=await navigator.clipboard.readText();compute();}
- catch{setMsg("Safari 無法讀剪貼簿","warn");}
-}
+
+document.getElementById("btnUndo").onclick=undo;
+document.getElementById("btnClear").onclick=clearAll;
+document.getElementById("btnCompute").onclick=compute;
+
 })();
 </script>
 
