@@ -121,6 +121,27 @@ html, body {
   flex-wrap: wrap;
   max-width: 100%;
 }
+/* ✅ 修正：避免任何區塊把畫面撐出水平卷軸 */
+html, body { width: 100%; overflow-x: hidden; }
+
+/* ✅ grid/flex 子元素允許縮小（很重要，不然內容一長就撐爆） */
+.grid2 { min-width: 0; }
+.panel { min-width: 0; }
+.rowline > * { min-width: 0; }
+
+/* ✅ pills：限制最大寬度 + 允許換行 */
+.pills { max-width: 100%; overflow: hidden; gap: 6px; }
+.pill { max-width: 100%; flex: 0 1 auto; }
+.pill span { min-width: 0; }
+
+/* ✅ mono 內容（像 10/J/Q/K、總張數那種）允許斷行 */
+.mono { overflow-wrap: anywhere; word-break: break-word; }
+
+/* ✅ 手機：按鈕 7 欄容易撐出寬度，改成 4 欄最穩 */
+@media (max-width: 480px){
+  .pad { grid-template-columns: repeat(4, 1fr); }
+  #btnCalc { grid-column: span 4; }
+}
     </style>
 </head>
 
