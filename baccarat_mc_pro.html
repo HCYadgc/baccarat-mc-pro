@@ -35,15 +35,21 @@
 <body>
   <h1>百家樂勝率 PRO（8副牌｜扣除已開牌｜蒙地卡羅）</h1>
   <div class="muted small">
-    輸入牌例：<span class="pill mono">A 10 J Q K 3 7</span> 或 <span class="pill mono">A♠ 10H KD 3d</span>（花色會自動忽略）
+    不用分莊/閒：只要把「這局翻開的全部牌」輸入即可（4~6張）。
+    <br/>
+    輸入例：<span class="pill mono">2 2 5 3 3 1</span>（閒22補5、莊33補1）
+    <br/>
+    牌例：<span class="pill mono">A 10 J Q K 3 7</span> 或 <span class="pill mono">A♠ 10H KD 3d</span>（花色會自動忽略）
     <br/>
     快捷鍵：<span class="kbd">Enter</span>=加入暫存｜<span class="kbd">M</span>=計算下一局｜<span class="kbd">Esc</span>=清暫存｜<span class="kbd">R</span>=重置
+    <br/>
+    <span class="pill mono">網址帶入</span>：<span class="pill mono">?cards=2,2,5,3,3,1&auto=1</span>（自動加入並計算）
   </div>
 
   <div class="card">
     <div class="row" style="align-items:flex-start;">
       <div style="flex:1; min-width:280px;">
-        <div class="big"><b>步驟 1：輸入已開過的牌</b></div>
+        <div class="big"><b>步驟 1：輸入已開過的牌（本局全部翻開的牌）</b></div>
         <textarea id="inputCards" placeholder="可貼上多行；可含花色，例如：A♠ 10H KD&#10;3d, 7c ..."></textarea>
 
         <div class="row" style="margin-top:10px;">
@@ -94,7 +100,7 @@
   </div>
 
   <div class="card">
-    <div class="big"><b>步驟 2：下一局估計勝率（扣除已開牌後）</b></div>
+    <div class="big"><b>步驟 2：下一局估計機率（扣除已開牌後）</b></div>
     <div class="grid" style="margin-top:10px;">
       <div>
         <div class="muted">閒 (Player) 勝率</div>
@@ -107,6 +113,11 @@
       <div>
         <div class="muted">和 (Tie) 機率</div>
         <div id="tProb" class="big mono">—</div>
+      </div>
+      <div>
+        <div class="muted">EV 參考（不提供下注指令）</div>
+        <div id="ev" class="big mono">—</div>
+        <div id="ev2" class="muted small"></div>
       </div>
     </div>
 
@@ -136,23 +147,15 @@
     return RANKS.map((r,i)=>`${r}:${counts[i]}`).join("  ");
   }
 
-  // ---------- 輸入解析（升級：忽略花色/符號/換行） ----------
-  // 允許：A,2..10,J,Q,K；可帶花色：A♠ / 10h / kd / Q♦ 等
+  // ---------- 輸入解析（忽略花色/符號/換行） ----------
   function normalizeToken(tok){
     let t = tok.trim().toUpperCase();
     if(!t) return null;
-
-    // 去掉常見花色與非字元（保留 A/2-10/JQK）
-    // 例如：A♠ -> A；10H -> 10；KD -> K
     t = t.replace(/[♠♥♦♣SHDC]/g, "");
     t = t.replace(/[^A-Z0-9]/g, "");
-
-    if(t === "1") t = "A"; // 有人會打 1 當 A
+    if(t === "1") t = "A";
+    if(t === "T") t = "10";
     if(IDX.has(t)) return t;
-
-    // 有人可能貼上 "T" 當 10
-    if(t === "T") return "10";
-
     return null;
   }
 
@@ -236,9 +239,9 @@
     return 2;
   }
 
-  // ---------- WebCrypto RNG：均勻整數（拒絕抽樣避免偏差） ----------
+  // ---------- WebCrypto RNG：均勻整數 ----------
   function randIntBelow(n){
-    const max = 0x100000000; // 2^32
+    const max = 0x100000000;
     const limit = max - (max % n);
     const buf = new Uint32Array(1);
     while(true){
@@ -248,7 +251,7 @@
     }
   }
 
-  // ---------- 展開 deck（只做一次），每局用「部分洗牌 + 還原」(超快、零拷貝) ----------
+  // ---------- 展開 deck ----------
   function expandDeckFromCounts(counts){
     const deck = [];
     for(let i=0;i<counts.length;i++){
@@ -258,28 +261,23 @@
   }
 
   function draw6FastInPlace(deck, swapsJ){
-    // partial Fisher-Yates：只打亂前 6 張
-    // swapsJ[i] 記錄 i 與 j 的 j 值，用來回復原狀
     const n = deck.length;
     for(let i=0;i<MAX_DRAW;i++){
       const j = i + randIntBelow(n - i);
       swapsJ[i] = j;
       const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
-    // 取前6張（注意：這裡不新建 array 會更快，但 playOneRound 需要索引）
-    // 直接回傳一個固定長度陣列
     return [deck[0],deck[1],deck[2],deck[3],deck[4],deck[5]];
   }
 
   function restoreDeck(deck, swapsJ){
-    // 反向 swap 回來
     for(let i=MAX_DRAW-1;i>=0;i--){
       const j = swapsJ[i];
       const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
   }
 
-  // ---------- 蒙地卡羅估計（含進度條更新） ----------
+  // ---------- 蒙地卡羅估計 ----------
   function estimateProbs(counts, trials, onProgress){
     const m = shoeSize(counts);
     if(m < 6) throw new Error("剩餘牌不足以模擬（至少要 >=6 張）。");
@@ -288,8 +286,6 @@
     const swapsJ = new Int32Array(MAX_DRAW);
 
     let pw=0, bw=0, tw=0;
-
-    // 每隔一段更新進度，避免太頻繁卡 UI
     const step = Math.max(5000, Math.floor(trials / 200));
 
     for(let k=1;k<=trials;k++){
@@ -310,6 +306,27 @@
     return [pw/total, bw/total, tw/total];
   }
 
+  // ---------- EV（僅數據參考） ----------
+  function calcEV(p, b, t){
+    // 常見規則：閒 1:1，莊 1:1 抽 5%，和 8:1
+    const evP = p - b;
+    const evB = 0.95 * b - p;
+    const evT = 8 * t - (1 - t);
+    return { evP, evB, evT };
+  }
+
+  // ---------- URL 帶入 cards ----------
+  function getParam(name){
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name);
+  }
+  function parseCardsFromParam(cardsParam){
+    if(!cardsParam) return [];
+    const cleaned = cardsParam.replace(/[|]/g, " ").replace(/,/g, " ").trim();
+    if(!cleaned) return [];
+    return parseCards(cleaned);
+  }
+
   // ---------- UI 狀態 ----------
   let shoe = newShoeCounts(8);
   let buffer = [];
@@ -328,6 +345,8 @@
   const elP = document.getElementById("pProb");
   const elB = document.getElementById("bProb");
   const elT = document.getElementById("tProb");
+  const elEV = document.getElementById("ev");
+  const elEV2 = document.getElementById("ev2");
   const elHist = document.getElementById("history");
   const elBar = document.getElementById("bar");
 
@@ -356,6 +375,52 @@
   function resetProgress(){ elBar.style.width = "0%"; }
   function setProgress(frac){ elBar.style.width = `${Math.max(0,Math.min(1,frac))*100}%`; }
 
+  // ---------- localStorage 自動保存/載入（ABCD） ----------
+  const SAVE_KEY = "baccarat_mc_pro_state_v1";
+
+  function saveState(){
+    try{
+      const obj = {
+        roundNo,
+        shoe: Array.from(shoe),
+        buffer: buffer.slice(),
+        history: history.slice(),
+        trials: Number(elTrials.value) || 200000,
+        pProb: elP.textContent,
+        bProb: elB.textContent,
+        tProb: elT.textContent,
+        ev: elEV.textContent,
+        ev2: elEV2.textContent
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(obj));
+    }catch(_e){}
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return false;
+      const obj = JSON.parse(raw);
+      if(!obj || !Array.isArray(obj.shoe) || obj.shoe.length !== RANKS.length) return false;
+
+      shoe = new Int16Array(obj.shoe.map(Number));
+      roundNo = Number(obj.roundNo || 1);
+      buffer = Array.isArray(obj.buffer) ? obj.buffer.map(String) : [];
+      history = Array.isArray(obj.history) ? obj.history : [];
+      if(obj.trials) elTrials.value = String(obj.trials);
+
+      if(obj.pProb) elP.textContent = obj.pProb;
+      if(obj.bProb) elB.textContent = obj.bProb;
+      if(obj.tProb) elT.textContent = obj.tProb;
+      if(obj.ev) elEV.textContent = obj.ev;
+      if(obj.ev2) elEV2.textContent = obj.ev2;
+
+      return true;
+    }catch(_e){
+      return false;
+    }
+  }
+
   // ---------- 行為 ----------
   function addBufferFromInput(){
     try{
@@ -365,6 +430,7 @@
       elInput.value = "";
       setMsg(`已加入 ${cards.length} 張。本輪暫存共 ${buffer.length} 張。`, "ok");
       render();
+      saveState();
     }catch(e){
       setMsg(e.message, "warn");
     }
@@ -378,7 +444,7 @@
         setMsg("模擬次數請輸入 >= 1000 的數字。", "warn"); return;
       }
 
-      // 扣牌
+      // 扣牌（把本局翻開的全部牌扣掉）
       if(buffer.length){
         removeCardsFromShoe(shoe, buffer);
       }
@@ -388,13 +454,14 @@
       if(remain < 6){
         setMsg("剩餘牌不足以模擬下一局（<6 張），已停止。", "warn");
         render();
+        saveState();
         return;
       }
 
       setMsg("計算中…（PRO 快速版）", "muted");
       render();
+      saveState();
 
-      // 讓 UI 先更新
       setTimeout(() => {
         try{
           const [p,b,t] = estimateProbs(shoe, trials, frac => setProgress(frac));
@@ -402,14 +469,20 @@
           elB.textContent = pct(b);
           elT.textContent = pct(t);
 
+          const ev = calcEV(p,b,t);
+          elEV.textContent = "EV(每下注 1 單位)";
+          elEV2.textContent = `閒=${(ev.evP*100).toFixed(3)}%  莊=${(ev.evB*100).toFixed(3)}%  和=${(ev.evT*100).toFixed(3)}%（僅數據參考）`;
+
           history.push({round: roundNo, remain, trials, p,b,t});
-          setMsg(`完成：已扣除本輪已開牌並估計下一局勝率（${trials.toLocaleString()} 次）。`, "ok");
+          setMsg(`完成：已扣除本局已開牌並估計下一局機率（${trials.toLocaleString()} 次）。`, "ok");
 
           roundNo++;
           render();
+          saveState();
         }catch(e){
           setMsg(e.message, "warn");
           render();
+          saveState();
         }
       }, 30);
 
@@ -424,15 +497,19 @@
     roundNo = 1;
     history = [];
     elP.textContent = elB.textContent = elT.textContent = "—";
+    elEV.textContent = "—";
+    elEV2.textContent = "";
     resetProgress();
     setMsg("已重置為 8 副牌新牌靴。", "ok");
     render();
+    saveState();
   }
 
   function clearBuffer(){
     buffer = [];
     setMsg("已清空本輪暫存。", "ok");
     render();
+    saveState();
   }
 
   // ---------- 匯出/匯入 ----------
@@ -442,11 +519,12 @@
       roundNo,
       shoe: Array.from(shoe),
       buffer: buffer.slice(),
-      history: history.slice()
+      history: history.slice(),
+      trials: Number(elTrials.value) || 200000
     };
     const json = JSON.stringify(obj, null, 2);
-    // 用 prompt 讓你直接複製（最省事）
     window.prompt("複製以下 JSON（可貼到記事本保存）：", json);
+    saveState();
   }
 
   function importState(){
@@ -461,8 +539,11 @@
       roundNo = Number(obj.roundNo || 1);
       buffer = Array.isArray(obj.buffer) ? obj.buffer.map(String) : [];
       history = Array.isArray(obj.history) ? obj.history : [];
+      if(obj.trials) elTrials.value = String(obj.trials);
+
       setMsg("已匯入狀態。", "ok");
       render();
+      saveState();
     }catch(e){
       setMsg("匯入失敗：" + e.message, "warn");
     }
@@ -480,15 +561,13 @@
     if(elPreset.value){
       elTrials.value = elPreset.value;
       setMsg(`已套用模擬次數：${Number(elPreset.value).toLocaleString()}`, "ok");
+      saveState();
     }
     elPreset.value = "";
   });
 
-  // Enter：加入暫存（避免按 Enter 換行太常見，這裡用 Ctrl+Enter 更保守？）
-  // 你要「更方便」，我做成：Enter 單行時加入；多行就照常換行。
   elInput.addEventListener("keydown", (e) => {
     if(e.key === "Enter" && !e.shiftKey){
-      // 如果裡面沒有換行，Enter 就當作加入
       const hasNewline = elInput.value.includes("\n");
       if(!hasNewline){
         e.preventDefault();
@@ -497,17 +576,35 @@
     }
   });
 
-  // 全域快捷鍵：M / R / Esc
   window.addEventListener("keydown", (e) => {
-    // 避免在輸入框輸入英文字母時被搶走（但 M/R/Esc 很實用）
     if(e.key === "Escape"){ clearBuffer(); }
     else if(e.key.toUpperCase() === "M"){ computeNext(); }
     else if(e.key.toUpperCase() === "R"){ resetAll(); }
   });
 
-  // 初始
+  // ---------- 初始 ----------
+  const loaded = loadState();
   render();
-  setMsg("準備就緒：輸入已開過的牌 → Enter 加入（可多次）→ 按 M 計算下一局。", "ok");
+
+  // URL 自動帶入 cards（可搭 auto=1 直接算）
+  const cardsParam = getParam("cards");
+  const auto = getParam("auto");
+  if(cardsParam){
+    try{
+      const cards = parseCardsFromParam(cardsParam);
+      if(cards.length){
+        buffer.push(...cards);
+        setMsg(`已從網址自動加入 ${cards.length} 張：${cards.join(" ")}`, "ok");
+        render();
+        saveState();
+        if(auto === "1") computeNext();
+      }
+    }catch(e){
+      setMsg("網址帶入失敗：" + (e.message || String(e)), "warn");
+    }
+  }else{
+    setMsg(loaded ? "已從本機自動載入上次狀態（localStorage）。" : "準備就緒：輸入本局全部翻開的牌 → Enter 加入 → 按 M 計算下一局。", "ok");
+  }
 })();
 </script>
 </body>
