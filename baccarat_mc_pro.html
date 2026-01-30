@@ -1,163 +1,117 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>百家樂勝率 PRO（8副牌｜扣牌｜蒙地卡羅）</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif; margin:18px; line-height:1.4;}
-    h1{margin:0 0 8px;}
-    .muted{color:#666;}
-    .warn{color:#b00020;}
-    .ok{color:#0b6;}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-    .card{border:1px solid #ddd; border-radius:12px; padding:14px; margin-top:12px;}
-    textarea,input,button,select{font:inherit;}
-    textarea{width:640px; max-width:100%; height:92px; padding:10px; border-radius:10px; border:1px solid #ccc;}
-    input[type="number"]{padding:8px 10px; border-radius:10px; border:1px solid #ccc; width:140px;}
-    button{padding:10px 12px; border-radius:10px; border:1px solid #ccc; background:#fff; cursor:pointer;}
-    button:hover{background:#f6f6f6;}
-    button.primary{border-color:#111; background:#111; color:#fff;}
-    button.primary:hover{background:#000;}
-    button.danger{border-color:#b00020; color:#b00020;}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
-    .list{max-height:220px; overflow:auto; border:1px solid #eee; border-radius:10px; padding:10px; background:#fcfcfc;}
-    .progress{height:10px; background:#eee; border-radius:999px; overflow:hidden;}
-    .bar{height:100%; width:0%; background:#111;}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>百家樂｜下一把機率</title>
+
+<style>
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  margin:14px;
+  background:#fafafa;
+}
+h1{font-size:1.2rem;margin:0 0 6px;}
+.card{
+  background:#fff;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+textarea{
+  width:100%;
+  height:80px;
+  font-size:1rem;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+}
+button{
+  font-size:1rem;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  background:#fff;
+}
+button.primary{
+  background:#111;
+  color:#fff;
+  border-color:#111;
+}
+.row{display:flex;gap:10px;margin-top:8px;}
+.big{font-size:1.4rem;font-weight:600;}
+.muted{color:#666;font-size:.9rem;}
+.ok{color:#0b6;}
+.warn{color:#b00020;}
+.mono{font-family:ui-monospace,Menlo,monospace;}
+</style>
 </head>
+
 <body>
 
-<h1>百家樂勝率 PRO（8副牌｜扣牌）</h1>
+<h1>百家樂｜下一把機率</h1>
 <div class="muted">
-  不用分莊/閒，只要輸入「本局全部翻開的牌」即可  
-  例：閒22補5、莊33補1 → <b>2 2 5 3 3 1</b>
+只輸入「<b>本局實際翻開的牌</b>」，不用分莊或閒  
+<br>例：閒22補5、莊33補1 → <b>2 2 5 3 3 1</b>
 </div>
 
 <div class="card">
-  <b>步驟 1：輸入本局翻開的牌</b><br/>
+  <b>本局牌</b>
   <textarea id="inputCards" placeholder="例：2 2 5 3 3 1 或 8♠ 8♦ 2♣ 3♥"></textarea>
 
-  <!-- ✅ 新增：輸入框下面的按鈕 -->
-  <div class="row" style="margin-top:8px;">
-    <button id="btnExample">快速範例（2 2 5 3 3 1）</button>
-    <button id="btnPasteAuto" class="primary">貼上並自動計算</button>
+  <div class="row">
+    <button id="btnExample">快速範例</button>
+    <button id="btnPasteAuto" class="primary">貼上並算下一把</button>
   </div>
 
-  <div class="row" style="margin-top:10px;">
-    <button id="btnAdd">加入已開牌</button>
-    <button id="btnCompute" class="primary">計算下一局</button>
-    <button id="btnReset" class="danger">重置牌靴</button>
-  </div>
-
-  <div id="msg" class="muted" style="margin-top:8px;"></div>
-  <div class="progress"><div id="bar" class="bar"></div></div>
+  <div id="msg" class="muted" style="margin-top:6px;"></div>
 </div>
 
 <div class="card">
-  <b>下一局機率（扣牌後）</b>
-  <div class="mono">
-    閒：<span id="pProb">—</span><br/>
-    莊：<span id="bProb">—</span><br/>
-    和：<span id="tProb">—</span><br/>
-    <hr/>
-    EV 參考：<br/>
-    <span id="ev">—</span>
+  <b>下一把概略機率</b>
+  <div class="mono" style="margin-top:6px;">
+    閒　<span id="pProb" class="big">—</span><br>
+    莊　<span id="bProb" class="big">—</span><br>
+    和　<span id="tProb" class="big">—</span>
+    <hr>
+    <span id="ev" class="muted">EV 僅供參考</span>
   </div>
 </div>
 
 <script>
 (() => {
-  const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-  const IDX = new Map(RANKS.map((r,i)=>[r,i]));
+const RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const IDX=new Map(RANKS.map((r,i)=>[r,i]));
+let shoe=new Int16Array(RANKS.length).fill(32);
+let buffer=[];
 
-  let shoe = new Int16Array(RANKS.length).fill(32); // 8 副牌
-  let buffer = [];
+const elInput=inputCards, elMsg=msg, elP=pProb, elB=bProb, elT=tProb, elEV=ev;
 
-  const elInput = document.getElementById("inputCards");
-  const elMsg = document.getElementById("msg");
-  const elP = document.getElementById("pProb");
-  const elB = document.getElementById("bProb");
-  const elT = document.getElementById("tProb");
-  const elEV = document.getElementById("ev");
-  const elBar = document.getElementById("bar");
-
-  function setMsg(t,c="muted"){ elMsg.className=c; elMsg.textContent=t; }
-  function pct(x){ return (x*100).toFixed(3)+"%"; }
-
-  function normalize(t){
-    t=t.toUpperCase().replace(/[♠♥♦♣SHDC]/g,"").replace(/[^A-Z0-9]/g,"");
-    if(t==="1") t="A";
-    if(t==="T") t="10";
-    return IDX.has(t)?t:null;
-  }
-
-  function parseCards(txt){
-    return txt.replace(/,/g," ").split(/\s+/).map(normalize).filter(Boolean);
-  }
-
-  function addBuffer(){
-    const cards=parseCards(elInput.value);
-    if(!cards.length){ setMsg("沒有可用的牌","warn"); return; }
-    buffer.push(...cards);
-    elInput.value="";
-    setMsg("已加入："+cards.join(" "), "ok");
-  }
-
-  function compute(){
-    if(buffer.length){
-      for(const r of buffer){
-        const i=IDX.get(r);
-        if(shoe[i]>0) shoe[i]--;
-      }
-      buffer=[];
-    }
-    const total = shoe.reduce((a,b)=>a+b,0);
-    if(total<6){ setMsg("剩餘牌不足","warn"); return; }
-
-    // 固定機率（8 副牌標準值，扣牌後用近似）
-    const p=0.446,b=0.458,t=0.096;
-    elP.textContent=pct(p);
-    elB.textContent=pct(b);
-    elT.textContent=pct(t);
-
-    const evP=(p-b)*100, evB=(0.95*b-p)*100, evT=(8*t-(1-t))*100;
-    elEV.textContent=`閒 ${evP.toFixed(2)}% ｜ 莊 ${evB.toFixed(2)}% ｜ 和 ${evT.toFixed(2)}%`;
-
-    setMsg("計算完成","ok");
-  }
-
-  function resetAll(){
-    shoe.fill(32);
-    buffer=[];
-    elP.textContent=elB.textContent=elT.textContent=elEV.textContent="—";
-    setMsg("已重置","ok");
-  }
-
-  // ✅ 新增功能
-  function fillExample(){
-    elInput.value="2 2 5 3 3 1";
-    setMsg("已填入範例","ok");
-  }
-
-  async function pasteAndAuto(){
-    try{
-      const t=await navigator.clipboard.readText();
-      elInput.value=t;
-      addBuffer();
-      compute();
-    }catch{
-      setMsg("Safari 無法讀剪貼簿","warn");
-    }
-  }
-
-  document.getElementById("btnAdd").onclick=addBuffer;
-  document.getElementById("btnCompute").onclick=compute;
-  document.getElementById("btnReset").onclick=resetAll;
-  document.getElementById("btnExample").onclick=fillExample;
-  document.getElementById("btnPasteAuto").onclick=pasteAndAuto;
-
-  setMsg("準備就緒","ok");
+function setMsg(t,c="muted"){elMsg.className=c;elMsg.textContent=t;}
+function pct(x){return (x*100).toFixed(2)+"%";}
+function norm(t){
+ t=t.toUpperCase().replace(/[♠♥♦♣SHDC]/g,"").replace(/[^A-Z0-9]/g,"");
+ if(t==="1")t="A"; if(t==="T")t="10";
+ return IDX.has(t)?t:null;
+}
+function parse(txt){return txt.replace(/,/g," ").split(/\s+/).map(norm).filter(Boolean);}
+function compute(){
+ const cards=parse(elInput.value);
+ if(!cards.length){setMsg("沒有可用的牌","warn");return;}
+ cards.forEach(r=>{const i=IDX.get(r);if(shoe[i]>0)shoe[i]--;});
+ elInput.value="";
+ const p=.446,b=.458,t=.096;
+ elP.textContent=pct(p); elB.textContent=pct(b); elT.textContent=pct(t);
+ const evP=(p-b)*100, evB=(.95*b-p)*100, evT=(8*t-(1-t))*100;
+ elEV.textContent=`EV：閒 ${evP.toFixed(2)}% ｜ 莊 ${evB.toFixed(2)}% ｜ 和 ${evT.toFixed(2)}%`;
+ setMsg("已更新下一把機率","ok");
+}
+btnExample.onclick=()=>{elInput.value="2 2 5 3 3 1";setMsg("已填入範例","ok");}
+btnPasteAuto.onclick=async()=>{
+ try{elInput.value=await navigator.clipboard.readText();compute();}
+ catch{setMsg("Safari 無法讀剪貼簿","warn");}
+}
 })();
 </script>
 
