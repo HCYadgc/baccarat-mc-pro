@@ -212,17 +212,65 @@
         </div>
       </div>
 
-      <div class="ev">
-        <div class="rowline">
-          <div style="font-weight:1100;">下注建議（進取版：看 EV 最大）</div>
-          <div class="rowline" style="gap:8px;">
-            <span class="muted">莊抽水</span>
-            <select id="commission">
-              <option value="0.05" selected>5%（常見）</option>
-              <option value="0.00">0%（免水）</option>
-            </select>
-          </div>
-        </div>
+
+  <div class="ev">
+  <div class="rowline">
+    <div style="font-weight:1100;">下注建議（激進模式）</div>
+    <div class="rowline" style="gap:8px;">
+      <span class="muted">莊抽水</span>
+      <select id="commission">
+        <option value="0.05" selected>5%（常見）</option>
+        <option value="0.00">0%（免水）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="rowline" style="gap:8px;">
+    <span class="muted">策略</span>
+    <select id="strategy">
+      <option value="evmax" selected>EV 最大（偏激進：永遠下注）</option>
+      <option value="negok">容忍負EV也下注（更激進）</option>
+      <option value="follow">追路（連莊/連閒就跟）</option>
+      <option value="fade">反向（連莊/連閒就反買）</option>
+      <option value="martingale">馬丁倍壓（輸就倍壓，上限封頂）</option>
+    </select>
+
+    <span class="muted">負EV容忍</span>
+    <input id="negTol" type="number" step="0.001" value="-0.010" style="width:110px;">
+    <span class="muted mono">(例 -0.010)</span>
+  </div>
+
+  <div class="rowline" style="gap:8px;margin-top:8px;">
+    <span class="muted">追路/反向 需要連續</span>
+    <input id="streakN" type="number" min="2" step="1" value="2" style="width:80px;">
+    <span class="muted">次才觸發</span>
+
+    <span class="muted">馬丁上限</span>
+    <input id="martCap" type="number" min="2" step="1" value="8" style="width:80px;">
+    <span class="muted">單位</span>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="mono" id="evLine">—</div>
+  <div class="mono" id="betLine" style="margin-top:6px;">—</div>
+
+  <div class="hr"></div>
+
+  <div class="rowline" style="justify-content:flex-start; gap:8px;">
+    <span class="muted">記錄上一局結果（用來追路/倍壓）</span>
+    <button class="btn small" id="recB">莊</button>
+    <button class="btn small" id="recP">閒</button>
+    <button class="btn small" id="recT">和</button>
+    <button class="btn small danger" id="recClear">清空紀錄</button>
+  </div>
+
+  <div class="hint">
+    ⚠️ 激進策略會讓波動變很大（尤其馬丁/追路）。我用「單位」表示，不建議用真金額硬追。
+  </div>
+</div>
 
         <div class="hr"></div>
 
@@ -248,11 +296,155 @@
 
 <script>
 /* ===========================
-   牌值規則（百家樂）
-   A=1, 2..9=2..9, 10/J/Q/K=0
-   8副牌：每副
-   0點(10/J/Q/K)=16張
-   1..9 各4張
+// ====== 激進策略狀態 ======
+const betState = {
+  history: [],   // 'B'|'P'|'T'
+  lastPick: null, // 'B'|'P'|'T'
+  unit: 1
+};
+
+function lastNonTieStreak(hist){
+  // 回傳 {side, len}，只看最後一段連莊/連閒（忽略和）
+  let i = hist.length - 1;
+  while (i >= 0 && hist[i] === 'T') i--;
+  if (i < 0) return {side:null, len:0};
+  const side = hist[i];
+  let len = 0;
+  while (i >= 0){
+    if (hist[i] === 'T') { i--; continue; }
+    if (hist[i] !== side) break;
+    len++; i--;
+  }
+  return {side, len};
+}
+
+function opposite(side){
+  if (side === 'B') return 'P';
+  if (side === 'P') return 'B';
+  return 'T';
+}
+
+function sideName(s){
+  return s==='B' ? '莊' : s==='P' ? '閒' : '和';
+}
+
+function pickByStrategy(pP, pB, pT){
+  const commission = parseFloat(document.getElementById('commission').value || '0.05');
+  const strategy = document.getElementById('strategy').value;
+  const negTol = parseFloat(document.getElementById('negTol').value || '-0.010');
+  const streakN = Math.max(2, parseInt(document.getElementById('streakN').value,10) || 2);
+
+  const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
+
+  // EV 最大（永遠下注）
+  const evList = [
+    {side:'P', ev:evP},
+    {side:'B', ev:evB},
+    {side:'T', ev:evT},
+  ].sort((a,b)=>b.ev-a.ev);
+  const best = evList[0];
+
+  // 追路 / 反向（以結果連續為主，沒觸發就回 EVmax）
+  const streak = lastNonTieStreak(betState.history);
+
+  let pick = best.side;
+  let reason = `EV最大`;
+
+  if (strategy === 'negok'){
+    // 更激進：只要 EV >= negTol 就照下注（否則仍下注 EVmax，但會警告）
+    pick = best.side;
+    reason = `容忍負EV（門檻 ${negTol}）`;
+  }
+
+  if (strategy === 'follow'){
+    if (streak.side && streak.len >= streakN){
+      pick = streak.side;
+      reason = `追路：${sideName(streak.side)}連 ${streak.len}（≥${streakN}）`;
+    } else {
+      pick = best.side;
+      reason = `追路未觸發 → EV最大`;
+    }
+  }
+
+  if (strategy === 'fade'){
+    if (streak.side && streak.len >= streakN){
+      pick = opposite(streak.side);
+      reason = `反向：${sideName(streak.side)}連 ${streak.len}（≥${streakN}）`;
+    } else {
+      pick = best.side;
+      reason = `反向未觸發 → EV最大`;
+    }
+  }
+
+  if (strategy === 'martingale'){
+    // 馬丁：用 EVmax 當方向，單位由紀錄結果決定
+    pick = best.side;
+    reason = `馬丁：方向=EV最大，單位看輸贏`;
+  }
+
+  // 顯示 EV
+  setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜策略：${reason}`);
+
+  return {pick, best, evP, evB, evT, negTol, strategy};
+}
+
+function updateBetUI(pP, pB, pT){
+  const martCap = Math.max(2, parseInt(document.getElementById('martCap').value,10) || 8);
+
+  const out = pickByStrategy(pP, pB, pT);
+  let unit = betState.unit;
+
+  // negok：如果 EV 最大仍小於門檻，顯示「仍下注但很負」
+  if (out.strategy === 'negok'){
+    if (out.best.ev < out.negTol){
+      setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜⚠️ EV=${out.best.ev.toFixed(5)} < ${out.negTol}（仍照押，超激進）`);
+    } else {
+      setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜EV=${out.best.ev.toFixed(5)} ≥ ${out.negTol}`);
+    }
+  } else if (out.strategy === 'martingale'){
+    unit = Math.min(unit, martCap);
+    setText('betLine', `建議：${sideName(out.pick)}｜馬丁單位：${unit}/${martCap}｜（輸→倍壓；贏→回到 1）`);
+  } else {
+    setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜（激進：永遠下注）`);
+  }
+
+  betState.lastPick = out.pick;
+}
+
+// ====== 記錄結果按鈕 ======
+function recordResult(r){
+  betState.history.push(r);
+
+  const martCap = Math.max(2, parseInt(document.getElementById('martCap').value,10) || 8);
+  const strategy = document.getElementById('strategy').value;
+
+  // 馬丁：依上一把建議方向的輸贏更新 unit
+  if (strategy === 'martingale' && betState.lastPick){
+    if (r === 'T'){
+      // 和：通常 push，單位不變
+    } else if (r === betState.lastPick){
+      betState.unit = 1;
+    } else {
+      betState.unit = Math.min(betState.unit * 2, martCap);
+    }
+  }
+}
+
+document.getElementById('recB').addEventListener('click', ()=>{ recordResult('B'); });
+document.getElementById('recP').addEventListener('click', ()=>{ recordResult('P'); });
+document.getElementById('recT').addEventListener('click', ()=>{ recordResult('T'); });
+document.getElementById('recClear').addEventListener('click', ()=>{
+  betState.history = [];
+  betState.unit = 1;
+  betState.lastPick = null;
+  setText('betLine', '—');
+});
+
+// 策略/參數改動後，建議你重新按「計算下一局機率」再更新建議
+document.getElementById('strategy').addEventListener('change', ()=>{});
+document.getElementById('negTol').addEventListener('change', ()=>{});
+document.getElementById('streakN').addEventListener('change', ()=>{});
+document.getElementById('martCap').addEventListener('change', ()=>{});
 =========================== */
 
 const DECKS = 8;
@@ -515,7 +707,7 @@ async function runMC(){
   const line =
     `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}  → 建議：${pick.k}（EV 最大）`;
   setText('evLine', line);
-
+updateBetUI(pP, pB, pT);
   if (bad>0){
     console.log('bad trials:', bad);
   }
