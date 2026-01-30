@@ -1,165 +1,1045 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>百家樂｜點牌算下一把</title>
-
-<style>
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
-  margin:14px;
-  background:#f5f5f5;
-}
-h1{font-size:1.2rem;margin:0 0 6px;}
-.card{
-  background:#fff;
-  border-radius:14px;
-  padding:14px;
-  margin-bottom:12px;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:8px;
-  margin-top:10px;
-}
-button{
-  padding:12px 0;
-  font-size:1rem;
-  border-radius:10px;
-  border:1px solid #ccc;
-  background:#fff;
-}
-button.primary{
-  background:#111;
-  color:#fff;
-  border-color:#111;
-}
-.row{display:flex;gap:10px;margin-top:10px;}
-.big{font-size:1.4rem;font-weight:600;}
-.mono{font-family:ui-monospace,Menlo,monospace;}
-.muted{color:#666;font-size:.9rem;}
-.ok{color:#0b6;}
-.warn{color:#b00020;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>百家樂勝率 PRO（8副牌｜扣牌｜燒牌｜蒙地卡羅）</title>
+  <style>
+    :root{
+      --fg:#111; --muted:#666; --warn:#b00020; --ok:#0b6;
+      --bd:#e6e6e6; --bg:#fff; --soft:#fafafa;
+      --btn:#111; --btnfg:#fff;
+      --card:12px;
+    }
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif;
+      margin:16px; line-height:1.35; color:var(--fg); background:var(--bg);
+      padding-bottom: 92px; /* for sticky bar */
+    }
+    h1{margin:0 0 8px; font-size:1.55rem;}
+    .muted{color:var(--muted);}
+    .warn{color:var(--warn);}
+    .ok{color:var(--ok);}
+    .card{
+      border:1px solid var(--bd); border-radius:var(--card);
+      padding:14px; margin-top:12px; background:#fff;
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .grid{display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px;}
+    @media (min-width:720px){
+      .grid{grid-template-columns: repeat(7, minmax(0,1fr));}
+    }
+    button, input, select {font:inherit;}
+    button{
+      border:1px solid var(--bd); background:#fff; color:var(--fg);
+      border-radius:12px; padding:12px 12px; cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active{transform: translateY(1px);}
+    button.primary{background:var(--btn); color:var(--btnfg); border-color:var(--btn);}
+    button.danger{border-color:var(--warn); color:var(--warn);}
+    button.soft{background:var(--soft);}
+    button.rank{
+      padding:10px 8px; border-radius:14px;
+      display:flex; flex-direction:column; gap:4px; align-items:center; justify-content:center;
+      min-height:56px;
+    }
+    .rank .r{font-weight:800; font-size:1.05rem;}
+    .rank .c{font-size:.8rem; color:var(--muted);}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid var(--bd); background:var(--soft);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size:.92rem;
+      max-width:100%;
+    }
+    .pill button{
+      padding:4px 8px; border-radius:999px; border:1px solid var(--bd);
+    }
+    .list{
+      border:1px solid var(--bd); border-radius:12px; padding:10px; background:var(--soft);
+      max-height:220px; overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size:.92rem;
+      white-space: pre-wrap;
+    }
+    .hr{height:1px; background:var(--bd); margin:12px 0;}
+    .big{font-size:1.15rem;}
+    .small{font-size:.92rem;}
+    input[type="number"]{
+      padding:10px 12px; border-radius:12px; border:1px solid var(--bd); width:160px;
+    }
+    select{
+      padding:10px 12px; border-radius:12px; border:1px solid var(--bd);
+    }
+    .progress{height:10px; background:#eee; border-radius:999px; overflow:hidden;}
+    .bar{height:100%; width:0%; background:#111;}
+    .sticky{
+      position:fixed; left:0; right:0; bottom:0;
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(255,255,255,.95);
+      border-top:1px solid var(--bd);
+      backdrop-filter: blur(10px);
+    }
+    .sticky .wrap{
+      max-width:980px; margin:0 auto;
+      display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    }
+    .sticky .wrap .left{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .sticky .wrap .right{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .k{padding:2px 8px; border:1px solid var(--bd); border-bottom-width:2px; border-radius:8px; background:var(--soft); font-family:ui-monospace,monospace;}
+    .note{
+      border-left:4px solid var(--bd);
+      padding:10px 12px; background:var(--soft); border-radius:12px;
+    }
+    .twoCol{display:grid; grid-template-columns:1fr; gap:12px;}
+    @media (min-width:900px){
+      .twoCol{grid-template-columns: 1.1fr .9fr;}
+    }
+  </style>
 </head>
 
 <body>
-
-<h1>百家樂｜點牌算下一把</h1>
-<div class="muted">
-只點「<b>本局實際翻開的牌</b>」，不用分莊或閒  
-<br>例：閒22補5、莊33補1 → 點：2 2 5 3 3 1
-</div>
-
-<div class="card">
-  <b>本局已開過的牌</b>
-
-  <div id="cardPad" class="grid"></div>
-
-  <div class="row">
-    <button id="btnUndo">← 刪一張</button>
-    <button id="btnClear">清空</button>
-    <button id="btnCompute" class="primary">算下一把</button>
+  <h1>百家樂勝率 PRO（8副牌｜扣除已開牌｜燒牌｜蒙地卡羅）</h1>
+  <div class="muted small">
+    用法：看到一把開了哪些牌（不分莊閒），就按牌面按鈕把那幾張「加入暫存」→ 按 <span class="k">M</span> 或「計算下一局」。
+    <br/>
+    快捷鍵：<span class="k">M</span>=計算下一局｜<span class="k">Esc</span>=清暫存｜<span class="k">R</span>=重置牌靴
+    <br/>
+    <span class="pill">網址帶入：?cards=8,8,2,3&auto=1（自動加入並計算）</span>
   </div>
 
-  <div class="muted" style="margin-top:6px;">
-    已輸入：<span id="picked" class="mono">（無）</span>
+  <div class="card">
+    <div class="twoCol">
+      <div>
+        <div class="big"><b>步驟 1：用按鈕加入「本把已開過的牌」</b></div>
+        <div class="muted small" style="margin-top:6px;">
+          範例：閒 2 2 補 5；莊 3 3 補 1 → 你就按：<b>2、2、5、3、3、1</b>（順序不重要）
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between;">
+          <div><b>點牌面加入暫存</b> <span class="muted small">（括號是剩餘張數）</span></div>
+          <div class="row">
+            <button id="btnUndoLast" class="soft">↶ 退一張</button>
+            <button id="btnClear" class="soft">清暫存（Esc）</button>
+          </div>
+        </div>
+
+        <div id="rankGrid" class="grid" style="margin-top:10px;"></div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="align-items:flex-start;">
+          <div style="flex:1; min-width:260px;">
+            <div class="muted small">本輪暫存（尚未扣除）：</div>
+            <div id="bufferPills" class="row" style="margin-top:8px;"></div>
+            <div id="bufferText" class="list" style="margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="gap:12px;">
+          <label><b>模擬次數：</b></label>
+          <input id="trials" type="number" min="1000" step="1000" value="200000" />
+          <select id="preset">
+            <option value="">快速選擇</option>
+            <option value="50000">50,000（快）</option>
+            <option value="200000">200,000（平衡）</option>
+            <option value="500000">500,000（穩）</option>
+            <option value="1000000">1,000,000（更穩）</option>
+          </select>
+          <button id="btnExport" class="soft">匯出狀態 JSON</button>
+          <button id="btnImport" class="soft">匯入狀態 JSON</button>
+        </div>
+
+        <div id="msg" style="margin-top:10px;"></div>
+
+        <div style="margin-top:10px;">
+          <div class="muted small">計算進度（大次數時顯示）：</div>
+          <div class="progress"><div id="bar" class="bar"></div></div>
+        </div>
+
+        <div class="note small muted" style="margin-top:12px;">
+          提醒：以下「建議下注」是用估計機率計算 EV（期望值），只做數學展示，<b>不保證獲利</b>，請量力娛樂。
+        </div>
+      </div>
+
+      <div>
+        <div class="big"><b>牌靴狀態</b></div>
+        <div style="margin-top:8px;">回合：<span id="roundNo" class="pill"></span></div>
+        <div style="margin-top:8px;">剩餘張數：<span id="remain" class="pill"></span></div>
+
+        <div class="hr"></div>
+
+        <div class="big"><b>燒牌（Burn）</b></div>
+        <div class="muted small" style="margin-top:6px;">
+          規則：翻一張燒牌，依點數燒掉同樣張數（含那張）。<b>10/J/Q/K 視為 10</b>。
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnBurnToggle" class="soft">燒牌：<span id="burnEnabledText">開</span></button>
+          <button id="btnBurnReset" class="soft">重做燒牌</button>
+        </div>
+
+        <div class="muted small" style="margin-top:10px;">選燒牌（你看到的那張）：</div>
+        <div id="burnGrid" class="grid" style="margin-top:8px;"></div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnApplyBurn" class="primary">套用燒牌</button>
+        </div>
+
+        <div id="burnStatus" class="list" style="margin-top:10px;"></div>
+
+        <div class="hr"></div>
+
+        <div class="big"><b>扣牌後各點數張數</b></div>
+        <div id="shoeCounts" class="list" style="margin-top:8px;"></div>
+      </div>
+    </div>
   </div>
 
-  <div id="msg" class="muted" style="margin-top:6px;"></div>
-</div>
+  <div class="card">
+    <div class="big"><b>步驟 2：下一局估計勝率（扣除已開牌後）</b></div>
 
-<div class="card">
-  <b>下一把概略機率</b>
-  <div class="mono" style="margin-top:8px;">
-    閒　<span id="pProb" class="big">—</span><br>
-    莊　<span id="bProb" class="big">—</span><br>
-    和　<span id="tProb" class="big">—</span>
-    <hr>
-    <span id="ev" class="muted">EV 僅供參考</span>
+    <div class="row" style="margin-top:10px; justify-content:space-between;">
+      <div style="flex:1; min-width:160px;">
+        <div class="muted">閒 (Player)</div>
+        <div id="pProb" class="big" style="font-family: ui-monospace,monospace;">—</div>
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <div class="muted">莊 (Banker)</div>
+        <div id="bProb" class="big" style="font-family: ui-monospace,monospace;">—</div>
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <div class="muted">和 (Tie)</div>
+        <div id="tProb" class="big" style="font-family: ui-monospace,monospace;">—</div>
+      </div>
+      <div style="flex:1; min-width:180px;">
+        <div class="muted">建議（EV最高）</div>
+        <div id="rec" class="big" style="font-family: ui-monospace,monospace;">—</div>
+        <div id="rec2" class="muted small" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="big"><b>歷史紀錄</b></div>
+    <div id="history" class="list" style="margin-top:8px;"></div>
   </div>
-</div>
+
+  <!-- Sticky action bar -->
+  <div class="sticky">
+    <div class="wrap">
+      <div class="left">
+        <button id="btnCompute" class="primary">計算下一局（M）</button>
+        <button id="btnReset" class="danger">重置牌靴（R）</button>
+      </div>
+      <div class="right">
+        <span class="muted small">小技巧：先套用燒牌 → 每把只要點牌面 → 按計算</span>
+      </div>
+    </div>
+  </div>
 
 <script>
 (() => {
-const RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-const IDX=new Map(RANKS.map((r,i)=>[r,i]));
-let shoe=new Int16Array(RANKS.length).fill(32); // 8 副牌
-let picked=[];
+  // =========================
+  // 常數
+  // =========================
+  const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+  const IDX = new Map(RANKS.map((r,i)=>[r,i]));
+  const MAX_DRAW = 6;
 
-const elPad=cardPad, elPicked=pickedEl=picked;
-const elPickedText=document.getElementById("picked");
-const elMsg=document.getElementById("msg");
-const elP=document.getElementById("pProb");
-const elB=document.getElementById("bProb");
-const elT=document.getElementById("tProb");
-const elEV=document.getElementById("ev");
-
-function setMsg(t,c="muted"){elMsg.className=c;elMsg.textContent=t;}
-function pct(x){return (x*100).toFixed(2)+"%";}
-
-// 建立牌按鈕
-RANKS.forEach(r=>{
-  const b=document.createElement("button");
-  b.textContent=r;
-  b.onclick=()=>{
-    picked.push(r);
-    renderPicked();
-  };
-  elPad.appendChild(b);
-});
-
-function renderPicked(){
-  elPickedText.textContent=picked.length?picked.join(" "):"（無）";
-}
-
-function undo(){
-  picked.pop();
-  renderPicked();
-}
-
-function clearAll(){
-  picked.length=0;
-  renderPicked();
-  setMsg("已清空本局輸入","ok");
-}
-
-function compute(){
-  if(picked.length===0){
-    setMsg("請先點選本局已開過的牌","warn");
-    return;
+  // =========================
+  // RNG：WebCrypto 均勻整數（拒絕抽樣避免偏差）
+  // =========================
+  function randIntBelow(n){
+    const max = 0x100000000; // 2^32
+    const limit = max - (max % n);
+    const buf = new Uint32Array(1);
+    while(true){
+      crypto.getRandomValues(buf);
+      const x = buf[0];
+      if(x < limit) return x % n;
+    }
   }
-  // 扣牌
-  picked.forEach(r=>{
-    const i=IDX.get(r);
-    if(shoe[i]>0) shoe[i]--;
+
+  // =========================
+  // 牌靴（counts）
+  // =========================
+  function newShoeCounts(nDecks=8){
+    const counts = new Int16Array(RANKS.length);
+    for(let i=0;i<counts.length;i++) counts[i] = 4*nDecks;
+    return counts;
+  }
+  function shoeSize(counts){
+    let s=0; for(let i=0;i<counts.length;i++) s+=counts[i]; return s;
+  }
+  function formatCounts(counts){
+    return RANKS.map((r,i)=>`${r}:${counts[i]}`).join("  ");
+  }
+  function removeCardsFromShoe(counts, cards){
+    for(const r of cards){
+      const i = IDX.get(r);
+      if(counts[i] <= 0) throw new Error(`牌靴裡 ${r} 已經沒了，不能再扣。`);
+      counts[i]--;
+    }
+  }
+
+  // 從 counts 依比例隨機抽 1 張（不回放），回傳 rank
+  function drawOneFromCounts(counts){
+    const total = shoeSize(counts);
+    if(total <= 0) throw new Error("牌靴沒牌了。");
+    const k = randIntBelow(total);
+    let acc = 0;
+    for(let i=0;i<counts.length;i++){
+      const c = counts[i];
+      if(c<=0) continue;
+      if(k < acc + c){
+        counts[i]--;
+        return RANKS[i];
+      }
+      acc += c;
+    }
+    // 理論上不會到這
+    counts[counts.length-1]--;
+    return RANKS[counts.length-1];
+  }
+
+  // =========================
+  // 百家樂點數
+  // =========================
+  function rankValue(rank){
+    if(rank==="A") return 1;
+    if(rank==="10"||rank==="J"||rank==="Q"||rank==="K") return 0;
+    return Number(rank);
+  }
+  function handTotal(cards){
+    let s=0; for(const r of cards) s += rankValue(r);
+    return s % 10;
+  }
+
+  // =========================
+  // 補牌規則（抽 6 張足夠）
+  // =========================
+  function playOneRoundFromDraw(draw6){
+    const p = [draw6[0], draw6[1]];
+    const b = [draw6[2], draw6[3]];
+    let pt = handTotal(p);
+    let bt = handTotal(b);
+
+    // Natural
+    if(pt===8||pt===9||bt===8||bt===9){
+      if(pt>bt) return 0;
+      if(bt>pt) return 1;
+      return 2;
+    }
+
+    let idx = 4;
+    let pThird = null;
+
+    // Player draws
+    if(pt <= 5){
+      pThird = draw6[idx++]; p.push(pThird);
+      pt = handTotal(p);
+    }
+
+    bt = handTotal(b);
+    if(pThird === null){
+      // Banker draws on 0-5
+      if(bt <= 5){
+        b.push(draw6[idx++]);
+        bt = handTotal(b);
+      }
+    }else{
+      // Banker rule depends on player's third
+      const pv = rankValue(pThird);
+      if(bt <= 2){
+        b.push(draw6[idx++]);
+      }else if(bt === 3 && pv !== 8){
+        b.push(draw6[idx++]);
+      }else if(bt === 4 && (pv>=2 && pv<=7)){
+        b.push(draw6[idx++]);
+      }else if(bt === 5 && (pv>=4 && pv<=7)){
+        b.push(draw6[idx++]);
+      }else if(bt === 6 && (pv===6 || pv===7)){
+        b.push(draw6[idx++]);
+      }
+      bt = handTotal(b);
+    }
+
+    if(pt>bt) return 0;
+    if(bt>pt) return 1;
+    return 2;
+  }
+
+  // =========================
+  // Monte Carlo（快速：部分洗牌 + 還原）
+  // =========================
+  function expandDeckFromCounts(counts){
+    const deck = [];
+    for(let i=0;i<counts.length;i++){
+      for(let k=0;k<counts[i];k++) deck.push(RANKS[i]);
+    }
+    return deck;
+  }
+
+  function draw6FastInPlace(deck, swapsJ){
+    const n = deck.length;
+    for(let i=0;i<MAX_DRAW;i++){
+      const j = i + randIntBelow(n - i);
+      swapsJ[i] = j;
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+    return [deck[0],deck[1],deck[2],deck[3],deck[4],deck[5]];
+  }
+
+  function restoreDeck(deck, swapsJ){
+    for(let i=MAX_DRAW-1;i>=0;i--){
+      const j = swapsJ[i];
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+  }
+
+  function estimateProbs(counts, trials, onProgress){
+    const m = shoeSize(counts);
+    if(m < 6) throw new Error("剩餘牌不足以模擬（至少要 >=6 張）。");
+
+    const deck = expandDeckFromCounts(counts);
+    const swapsJ = new Int32Array(MAX_DRAW);
+
+    let pw=0, bw=0, tw=0;
+    const step = Math.max(5000, Math.floor(trials / 200));
+
+    for(let k=1;k<=trials;k++){
+      const draw6 = draw6FastInPlace(deck, swapsJ);
+      const out = playOneRoundFromDraw(draw6);
+      if(out===0) pw++;
+      else if(out===1) bw++;
+      else tw++;
+
+      restoreDeck(deck, swapsJ);
+
+      if(onProgress && (k % step === 0 || k === trials)){
+        onProgress(k / trials);
+      }
+    }
+
+    const total = pw+bw+tw;
+    return [pw/total, bw/total, tw/total];
+  }
+
+  // =========================
+  // EV 建議
+  // =========================
+  function calcRecommendation(p, b, t){
+    // 常見：閒 1:1，莊 1:1 抽 5%，和 8:1
+    const evP = p - b;
+    const evB = 0.95 * b - p;
+    const evT = 8 * t - (1 - t);
+
+    let bestSide = "閒";
+    let bestEV = evP;
+    if(evB > bestEV){ bestEV = evB; bestSide = "莊"; }
+    if(evT > bestEV){ bestEV = evT; bestSide = "和"; }
+
+    if(bestEV < 0) bestSide = "不下";
+    return { side: bestSide, evP, evB, evT, bestEV };
+  }
+
+  // =========================
+  // URL 帶入
+  // =========================
+  function getParam(name){
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name);
+  }
+  function normalizeToken(tok){
+    let t = String(tok).trim().toUpperCase();
+    if(!t) return null;
+    t = t.replace(/[♠♥♦♣SHDC]/g, "");
+    t = t.replace(/[^A-Z0-9]/g, "");
+    if(t === "1") t = "A";
+    if(t === "T") t = "10";
+    if(IDX.has(t)) return t;
+    return null;
+  }
+  function parseCardsFromParam(cardsParam){
+    if(!cardsParam) return [];
+    const cleaned = cardsParam.replace(/[|]/g, " ").replace(/,/g, " ").trim();
+    if(!cleaned) return [];
+    const toks = cleaned.split(/\s+/);
+    const out = [];
+    for(const tok of toks){
+      const t = normalizeToken(tok);
+      if(!t) throw new Error(`網址 cards 不認得：${tok}`);
+      out.push(t);
+    }
+    return out;
+  }
+
+  // =========================
+  // 狀態
+  // =========================
+  let shoe = newShoeCounts(8);
+  let buffer = [];
+  let roundNo = 1;
+  let history = [];
+
+  // Burn 狀態
+  let burnEnabled = true;
+  let burnApplied = false;
+  let burnCard = null;         // 看到的那張
+  let burnTotal = 0;           // 總燒掉張數（含那張）
+  let burnUnknownDrawn = [];   // 只做展示用（可不顯示也行）
+
+  // =========================
+  // UI 元件
+  // =========================
+  const elTrials = document.getElementById("trials");
+  const elPreset = document.getElementById("preset");
+  const elMsg = document.getElementById("msg");
+  const elRound = document.getElementById("roundNo");
+  const elRemain = document.getElementById("remain");
+  const elCounts = document.getElementById("shoeCounts");
+
+  const elRankGrid = document.getElementById("rankGrid");
+  const elBurnGrid = document.getElementById("burnGrid");
+
+  const elBufferPills = document.getElementById("bufferPills");
+  const elBufferText = document.getElementById("bufferText");
+
+  const elP = document.getElementById("pProb");
+  const elB = document.getElementById("bProb");
+  const elT = document.getElementById("tProb");
+  const elRec = document.getElementById("rec");
+  const elRec2 = document.getElementById("rec2");
+  const elHist = document.getElementById("history");
+  const elBar = document.getElementById("bar");
+
+  const elBurnEnabledText = document.getElementById("burnEnabledText");
+  const elBurnStatus = document.getElementById("burnStatus");
+
+  function setMsg(text, kind="muted"){
+    elMsg.className = kind;
+    elMsg.textContent = text;
+  }
+  function pct(x){ return (x*100).toFixed(4) + "%"; }
+  function resetProgress(){ elBar.style.width = "0%"; }
+  function setProgress(frac){ elBar.style.width = `${Math.max(0,Math.min(1,frac))*100}%`; }
+
+  // =========================
+  // localStorage（自動保存/載入）
+  // =========================
+  const SAVE_KEY = "baccarat_mc_pro_state_v2_buttons_burn";
+
+  function saveState(){
+    try{
+      const obj = {
+        roundNo,
+        shoe: Array.from(shoe),
+        buffer: buffer.slice(),
+        history: history.slice(),
+        trials: Number(elTrials.value) || 200000,
+
+        burnEnabled,
+        burnApplied,
+        burnCard,
+        burnTotal,
+
+        pProb: elP.textContent,
+        bProb: elB.textContent,
+        tProb: elT.textContent,
+        rec: elRec.textContent,
+        rec2: elRec2.textContent,
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(obj));
+    }catch(_e){}
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return false;
+      const obj = JSON.parse(raw);
+      if(!obj || !Array.isArray(obj.shoe) || obj.shoe.length !== RANKS.length) return false;
+
+      shoe = new Int16Array(obj.shoe.map(Number));
+      roundNo = Number(obj.roundNo || 1);
+      buffer = Array.isArray(obj.buffer) ? obj.buffer.map(String) : [];
+      history = Array.isArray(obj.history) ? obj.history : [];
+      if(obj.trials) elTrials.value = String(obj.trials);
+
+      burnEnabled = !!obj.burnEnabled;
+      burnApplied = !!obj.burnApplied;
+      burnCard = obj.burnCard || null;
+      burnTotal = Number(obj.burnTotal || 0);
+
+      if(obj.pProb) elP.textContent = obj.pProb;
+      if(obj.bProb) elB.textContent = obj.bProb;
+      if(obj.tProb) elT.textContent = obj.tProb;
+      if(obj.rec) elRec.textContent = obj.rec;
+      if(obj.rec2) elRec2.textContent = obj.rec2;
+
+      return true;
+    }catch(_e){
+      return false;
+    }
+  }
+
+  // =========================
+  // UI：按鈕生成（主點牌 / 燒牌選擇）
+  // =========================
+  function makeRankButton(rank, getCountFn, onClickFn){
+    const btn = document.createElement("button");
+    btn.className = "rank";
+    btn.type = "button";
+    btn.setAttribute("data-rank", rank);
+
+    const r = document.createElement("div");
+    r.className = "r";
+    r.textContent = rank;
+
+    const c = document.createElement("div");
+    c.className = "c";
+    c.textContent = `剩 ${getCountFn(rank)}`;
+
+    btn.appendChild(r);
+    btn.appendChild(c);
+
+    btn.addEventListener("click", () => onClickFn(rank));
+    return {btn, cEl: c};
+  }
+
+  let rankBtnRefs = []; // for refresh counts
+  let burnBtnRefs = [];
+
+  function buildRankGrids(){
+    elRankGrid.innerHTML = "";
+    elBurnGrid.innerHTML = "";
+    rankBtnRefs = [];
+    burnBtnRefs = [];
+
+    for(const rk of RANKS){
+      // 主點牌按鈕
+      const {btn, cEl} = makeRankButton(
+        rk,
+        (r)=> shoe[IDX.get(r)],
+        (r)=> addToBuffer(r)
+      );
+      elRankGrid.appendChild(btn);
+      rankBtnRefs.push({rk, btn, cEl});
+
+      // 燒牌選擇按鈕
+      const {btn: bbtn, cEl: bcEl} = makeRankButton(
+        rk,
+        (r)=> shoe[IDX.get(r)],
+        (r)=> { burnCard = r; render(); saveState(); setMsg(`已選燒牌：${r}（請按「套用燒牌」）`, "ok"); }
+      );
+      elBurnGrid.appendChild(bbtn);
+      burnBtnRefs.push({rk, btn: bbtn, cEl: bcEl});
+    }
+  }
+
+  // =========================
+  // Buffer：加入/退一張/清空
+  // =========================
+  function addToBuffer(rank){
+    // 這裡只檢查「目前牌靴剩餘」(避免按到扣成負數)
+    const i = IDX.get(rank);
+    if(shoe[i] <= 0){
+      setMsg(`牌靴裡 ${rank} 已經沒了。`, "warn");
+      return;
+    }
+    buffer.push(rank);
+    setMsg(`已加入：${rank}（暫存共 ${buffer.length} 張）`, "ok");
+    render();
+    saveState();
+  }
+
+  function undoLast(){
+    if(buffer.length === 0){
+      setMsg("暫存是空的。", "muted");
+      return;
+    }
+    const x = buffer.pop();
+    setMsg(`已退回：${x}`, "ok");
+    render();
+    saveState();
+  }
+
+  function clearBuffer(){
+    buffer = [];
+    setMsg("已清空本輪暫存。", "ok");
+    render();
+    saveState();
+  }
+
+  // =========================
+  // Burn：計算燒幾張、套用燒牌
+  // =========================
+  function burnCountFromCard(rank){
+    // 規則：A=1，2-9=本身，10/J/Q/K=10
+    if(rank === "A") return 1;
+    if(rank === "10" || rank === "J" || rank === "Q" || rank === "K") return 10;
+    return Number(rank); // 2..9
+  }
+
+  function resetBurn(){
+    burnApplied = false;
+    burnCard = null;
+    burnTotal = 0;
+    burnUnknownDrawn = [];
+    setMsg("已重置燒牌狀態，請重新選燒牌。", "ok");
+    render();
+    saveState();
+  }
+
+  function applyBurn(){
+    try{
+      if(!burnEnabled){
+        setMsg("目前燒牌是關閉的。", "warn");
+        return;
+      }
+      if(burnApplied){
+        setMsg("本靴已套用過燒牌了（若要重做請按「重做燒牌」）。", "warn");
+        return;
+      }
+      if(!burnCard){
+        setMsg("請先選一張燒牌（你看到的那張），再按「套用燒牌」。", "warn");
+        return;
+      }
+      const n = burnCountFromCard(burnCard);
+      const remainBefore = shoeSize(shoe);
+      if(remainBefore < n){
+        setMsg("牌靴剩餘不足以燒牌。", "warn");
+        return;
+      }
+
+      // 1) 先扣掉「看到的那張」
+      removeCardsFromShoe(shoe, [burnCard]);
+
+      // 2) 再扣掉其餘 n-1 張未知牌：依剩餘分佈隨機抽
+      burnUnknownDrawn = [];
+      for(let k=0;k<n-1;k++){
+        const r = drawOneFromCounts(shoe);
+        burnUnknownDrawn.push(r);
+      }
+
+      burnApplied = true;
+      burnTotal = n;
+
+      setMsg(`已套用燒牌：燒牌=${burnCard}，總共燒掉 ${n} 張（含燒牌）。`, "ok");
+      render();
+      saveState();
+    }catch(e){
+      setMsg(e.message || String(e), "warn");
+    }
+  }
+
+  // =========================
+  // 主流程：計算下一局（扣掉 buffer）
+  // =========================
+  function computeNext(){
+    try{
+      resetProgress();
+      const trials = Number(elTrials.value);
+      if(!Number.isFinite(trials) || trials < 1000){
+        setMsg("模擬次數請輸入 >= 1000 的數字。", "warn");
+        return;
+      }
+
+      // 扣牌（本把你按下的所有牌）
+      if(buffer.length){
+        removeCardsFromShoe(shoe, buffer);
+      }
+      buffer = [];
+
+      const remain = shoeSize(shoe);
+      if(remain < 6){
+        setMsg("剩餘牌不足以模擬下一局（<6 張），已停止。", "warn");
+        render();
+        saveState();
+        return;
+      }
+
+      setMsg("計算中…（蒙地卡羅）", "muted");
+      render();
+      saveState();
+
+      setTimeout(() => {
+        try{
+          const [p,b,t] = estimateProbs(shoe, trials, frac => setProgress(frac));
+          elP.textContent = pct(p);
+          elB.textContent = pct(b);
+          elT.textContent = pct(t);
+
+          const r = calcRecommendation(p,b,t);
+          elRec.textContent = r.side;
+          elRec2.textContent =
+            `EV(閒)=${(r.evP*100).toFixed(3)}%  EV(莊)=${(r.evB*100).toFixed(3)}%  EV(和)=${(r.evT*100).toFixed(3)}%`;
+
+          history.push({round: roundNo, remain, trials, p,b,t});
+          setMsg(`完成：已扣除本把已開牌並估計下一局勝率（${trials.toLocaleString()} 次）。`, "ok");
+
+          roundNo++;
+          render();
+          saveState();
+        }catch(e){
+          setMsg(e.message || String(e), "warn");
+          render();
+          saveState();
+        }
+      }, 30);
+
+    }catch(e){
+      setMsg(e.message || String(e), "warn");
+    }
+  }
+
+  function resetAll(){
+    shoe = newShoeCounts(8);
+    buffer = [];
+    roundNo = 1;
+    history = [];
+
+    // reset burn state
+    burnApplied = false;
+    burnCard = null;
+    burnTotal = 0;
+    burnUnknownDrawn = [];
+
+    elP.textContent = elB.textContent = elT.textContent = "—";
+    elRec.textContent = "—";
+    elRec2.textContent = "";
+    resetProgress();
+
+    setMsg("已重置為 8 副牌新牌靴。若你要燒牌：先選燒牌 → 按「套用燒牌」。", "ok");
+    render();
+    saveState();
+  }
+
+  // =========================
+  // 匯出 / 匯入
+  // =========================
+  function exportState(){
+    const obj = {
+      version: "baccarat-mc-pro-buttons-burn-1",
+      roundNo,
+      shoe: Array.from(shoe),
+      buffer: buffer.slice(),
+      history: history.slice(),
+      trials: Number(elTrials.value) || 200000,
+      burnEnabled, burnApplied, burnCard, burnTotal
+    };
+    const json = JSON.stringify(obj, null, 2);
+    window.prompt("複製以下 JSON（可貼到記事本保存）：", json);
+    saveState();
+  }
+
+  function importState(){
+    const json = window.prompt("貼上先前匯出的 JSON：");
+    if(!json) return;
+    try{
+      const obj = JSON.parse(json);
+      if(!obj || !Array.isArray(obj.shoe) || obj.shoe.length !== RANKS.length){
+        throw new Error("JSON 格式不正確（缺少 shoe 或長度不對）。");
+      }
+      shoe = new Int16Array(obj.shoe.map(Number));
+      roundNo = Number(obj.roundNo || 1);
+      buffer = Array.isArray(obj.buffer) ? obj.buffer.map(String) : [];
+      history = Array.isArray(obj.history) ? obj.history : [];
+      if(obj.trials) elTrials.value = String(obj.trials);
+
+      burnEnabled = !!obj.burnEnabled;
+      burnApplied = !!obj.burnApplied;
+      burnCard = obj.burnCard || null;
+      burnTotal = Number(obj.burnTotal || 0);
+
+      setMsg("已匯入狀態。", "ok");
+      render();
+      saveState();
+    }catch(e){
+      setMsg("匯入失敗：" + (e.message || String(e)), "warn");
+    }
+  }
+
+  // =========================
+  // 渲染
+  // =========================
+  function renderBuffer(){
+    // pills
+    elBufferPills.innerHTML = "";
+    if(buffer.length === 0){
+      const s = document.createElement("div");
+      s.className = "muted small";
+      s.textContent = "（空）";
+      elBufferPills.appendChild(s);
+    }else{
+      buffer.forEach((rk, idx) => {
+        const p = document.createElement("span");
+        p.className = "pill";
+        p.textContent = rk;
+
+        const x = document.createElement("button");
+        x.type = "button";
+        x.textContent = "×";
+        x.title = "刪除這張";
+        x.addEventListener("click", () => {
+          buffer.splice(idx, 1);
+          setMsg(`已刪除：${rk}`, "ok");
+          render();
+          saveState();
+        });
+
+        p.appendChild(x);
+        elBufferPills.appendChild(p);
+      });
+    }
+
+    elBufferText.textContent = buffer.length ? buffer.join(" ") : "（空）";
+  }
+
+  function refreshRankButtonCounts(){
+    for(const ref of rankBtnRefs){
+      const cnt = shoe[IDX.get(ref.rk)];
+      ref.cEl.textContent = `剩 ${cnt}`;
+      ref.btn.disabled = (cnt <= 0);
+      ref.btn.style.opacity = (cnt <= 0) ? 0.45 : 1;
+    }
+    for(const ref of burnBtnRefs){
+      const cnt = shoe[IDX.get(ref.rk)];
+      ref.cEl.textContent = `剩 ${cnt}`;
+      ref.btn.disabled = (cnt <= 0);
+      ref.btn.style.opacity = (cnt <= 0) ? 0.45 : 1;
+      // selected highlight
+      if(burnCard === ref.rk){
+        ref.btn.style.borderColor = "#111";
+        ref.btn.style.boxShadow = "0 0 0 2px rgba(0,0,0,.08) inset";
+      }else{
+        ref.btn.style.borderColor = "";
+        ref.btn.style.boxShadow = "";
+      }
+    }
+  }
+
+  function renderBurnStatus(){
+    elBurnEnabledText.textContent = burnEnabled ? "開" : "關";
+    const lines = [];
+    lines.push(`燒牌狀態：${burnEnabled ? "開啟" : "關閉"}`);
+    lines.push(`是否已套用：${burnApplied ? "是" : "否"}`);
+    lines.push(`燒牌（看到的那張）：${burnCard ? burnCard : "—"}`);
+    lines.push(`燒掉張數（含燒牌）：${burnApplied ? burnTotal : "—"}`);
+    if(burnApplied){
+      lines.push("");
+      lines.push("註：除第一張燒牌外，其餘燒掉的牌在實際桌上是未知；此工具用『隨機移除』等價模擬。");
+    }
+    elBurnStatus.textContent = lines.join("\n");
+  }
+
+  function renderHistory(){
+    if(history.length === 0){
+      elHist.textContent = "（尚無紀錄）";
+      return;
+    }
+    elHist.textContent = history.slice().reverse().map(h =>
+      `#${h.round}  remain=${h.remain}  trials=${h.trials}  P=${pct(h.p)}  B=${pct(h.b)}  T=${pct(h.t)}`
+    ).join("\n");
+  }
+
+  function render(){
+    elRound.textContent = String(roundNo);
+    elRemain.textContent = String(shoeSize(shoe));
+    elCounts.textContent = formatCounts(shoe);
+
+    renderBuffer();
+    renderBurnStatus();
+    renderHistory();
+    refreshRankButtonCounts();
+  }
+
+  // =========================
+  // URL auto import cards
+  // =========================
+  function autoImportFromURL(){
+    const cardsParam = getParam("cards");
+    const auto = getParam("auto"); // auto=1 自動計算
+    if(!cardsParam) return;
+
+    try{
+      const cards = parseCardsFromParam(cardsParam);
+      if(cards.length === 0) return;
+
+      // 直接加到 buffer
+      for(const c of cards) addToBuffer(c);
+
+      setMsg(`已從網址自動加入 ${cards.length} 張。`, "ok");
+      render();
+      saveState();
+
+      if(auto === "1"){
+        computeNext();
+      }
+    }catch(e){
+      setMsg("網址帶入失敗：" + (e.message || String(e)), "warn");
+    }
+  }
+
+  // =========================
+  // 綁定事件
+  // =========================
+  document.getElementById("btnCompute").addEventListener("click", computeNext);
+  document.getElementById("btnReset").addEventListener("click", resetAll);
+
+  document.getElementById("btnUndoLast").addEventListener("click", undoLast);
+  document.getElementById("btnClear").addEventListener("click", clearBuffer);
+
+  document.getElementById("btnExport").addEventListener("click", exportState);
+  document.getElementById("btnImport").addEventListener("click", importState);
+
+  elPreset.addEventListener("change", () => {
+    if(elPreset.value){
+      elTrials.value = elPreset.value;
+      setMsg(`已套用模擬次數：${Number(elPreset.value).toLocaleString()}`, "ok");
+      saveState();
+    }
+    elPreset.value = "";
   });
-  picked.length=0;
-  renderPicked();
 
-  // 固定基準機率（示意用，可之後換成完整蒙地卡羅）
-  const p=0.446, b=0.458, t=0.096;
-  elP.textContent=pct(p);
-  elB.textContent=pct(b);
-  elT.textContent=pct(t);
+  // Burn controls
+  document.getElementById("btnBurnToggle").addEventListener("click", () => {
+    burnEnabled = !burnEnabled;
+    setMsg(`燒牌已${burnEnabled ? "開啟" : "關閉"}。`, "ok");
+    render();
+    saveState();
+  });
+  document.getElementById("btnBurnReset").addEventListener("click", resetBurn);
+  document.getElementById("btnApplyBurn").addEventListener("click", applyBurn);
 
-  const evP=(p-b)*100;
-  const evB=(0.95*b-p)*100;
-  const evT=(8*t-(1-t))*100;
-  elEV.textContent=`EV：閒 ${evP.toFixed(2)}% ｜ 莊 ${evB.toFixed(2)}% ｜ 和 ${evT.toFixed(2)}%`;
+  // 快捷鍵：M / R / Esc
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){ clearBuffer(); }
+    else if(e.key.toUpperCase() === "M"){ computeNext(); }
+    else if(e.key.toUpperCase() === "R"){ resetAll(); }
+  });
 
-  setMsg("已更新下一把機率","ok");
-}
+  // =========================
+  // 初始化
+  // =========================
+  buildRankGrids();
+  const loaded = loadState();
+  render();
+  autoImportFromURL();
 
-document.getElementById("btnUndo").onclick=undo;
-document.getElementById("btnClear").onclick=clearAll;
-document.getElementById("btnCompute").onclick=compute;
-
+  if(loaded){
+    setMsg("已從本機自動載入上次狀態（localStorage）。", "ok");
+  }else{
+    setMsg("準備就緒：若要燒牌→先選燒牌按「套用燒牌」；每把→點牌面加入暫存→按 M 計算。", "ok");
+  }
 })();
 </script>
-
 </body>
 </html>
