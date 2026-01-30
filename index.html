@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>百家樂 PRO｜按鈕輸入扣牌｜燒牌｜8副牌蒙地卡羅</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#ffffff12;
+      --line:#ffffff22;
+      --P:#1976d2;     /* 閒：藍 */
+      --B:#d32f2f;     /* 莊：紅 */
+      --T:#2e7d32;     /* 和：綠 */
+      --text:#eaf0ff;
+      --muted:#b7c3e6;
+      --radius:18px;
+      --radius2:14px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --shadow2: 0 8px 18px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 50% -20%, #2b3cff55, transparent 60%),
+                  radial-gradient(900px 500px at 10% 20%, #00d1ff20, transparent 60%),
+                  radial-gradient(900px 500px at 90% 20%, #ff3b3020, transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      padding: 18px 14px 24px;
+    }
+    .app{max-width:1100px;margin:0 auto;}
+    .topbar{
+      display:grid; grid-template-columns: 1fr auto 1fr;
+      gap:10px; border-radius:28px; overflow:hidden;
+      box-shadow:var(--shadow); border:1px solid var(--line);
+    }
+    .side{display:flex;align-items:center;padding:16px;min-height:76px;}
+    .side.player{background:linear-gradient(90deg,#0e5fe0,var(--P));}
+    .side.banker{background:linear-gradient(90deg,var(--B),#b71c1c);justify-content:flex-end;}
+    .label{display:flex;flex-direction:column;gap:2px;font-weight:1000;letter-spacing:.6px;line-height:1.05;}
+    .label .zh{font-size:40px;text-shadow:0 2px 0 rgba(0,0,0,.25);}
+    .label .en{font-size:18px;opacity:.95;}
+    .score{
+      display:flex;align-items:center;justify-content:center;
+      padding:10px 12px;background:#0000002b;
+      border-left:1px solid #ffffff1c;border-right:1px solid #ffffff1c;
+      min-width:180px;
+    }
+    .score .digit{font-size:64px;font-weight:1100;padding:0 12px;line-height:1;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.25);}
+
+    .grid2{margin-top:12px;display:grid;grid-template-columns: 520px 1fr;gap:12px;}
+    @media (max-width: 980px){ .grid2{grid-template-columns:1fr;} .score{min-width:160px;} }
+
+    .panel{
+      background: linear-gradient(180deg, #ffffff10, #00000010);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+    h1{margin:0 0 8px;font-size:1.25rem;}
+    .muted{color:var(--muted);}
+    .hr{height:1px;background:#ffffff14;margin:10px 0;}
+
+    /* ---- input pad ---- */
+    .pad{display:grid;grid-template-columns: repeat(7, 1fr);gap:8px;margin-top:10px;}
+    .btn{
+      appearance:none;border:none;
+      background:#ffffff14;border:1px solid #ffffff20;color:var(--text);
+      padding:10px 8px;border-radius:14px;
+      font-weight:1000;cursor:pointer;user-select:none;
+    }
+    .btn:hover{background:#ffffff1a;}
+    .btn:active{transform:scale(.99);}
+    .btn.primary{background:#1b5cff55;border-color:#1b5cff88;}
+    .btn.danger{background:#ff3b3050;border-color:#ff3b3077;}
+    .btn.ok{background:#2e7d3250;border-color:#2e7d3277;}
+    .btn.small{padding:8px 8px;font-size:13px;font-weight:900;}
+    .pills{margin-top:8px;}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;background:#0000001a;border:1px solid #ffffff20;
+      border-radius:999px;font-weight:1000;margin:6px 6px 0 0;
+    }
+    .pill .x{opacity:.85;cursor:pointer;border:1px solid #ffffff22;border-radius:999px;padding:0 8px;}
+    .pill .x:active{transform:scale(.98);}
+
+    /* ---- probs ---- */
+    .probRow{display:grid;grid-template-columns: 1fr 1fr 1fr;gap:10px;margin-top:10px;}
+    .prob{
+      border:1px solid #ffffff20;background:#0000001a;border-radius:16px;
+      padding:10px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;
+    }
+    .prob .k{font-weight:1100;letter-spacing:.5px;}
+    .prob .v{font-size:30px;font-weight:1100;}
+    .prob.P .k,.prob.P .v{color:#9ac8ff;}
+    .prob.B .k,.prob.B .v{color:#ffb2b2;}
+    .prob.T .k,.prob.T .v{color:#aef2c9;}
+
+    .ev{
+      margin-top:10px;border:1px solid #ffffff20;background:#0000001a;border-radius:16px;padding:10px;
+    }
+    .rowline{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    select,input[type="number"]{
+      background:#0000002a;border:1px solid #ffffff20;color:var(--text);
+      border-radius:12px;padding:10px 10px;font-weight:900;outline:none;
+    }
+    .hint{color:var(--muted);font-size:13px;line-height:1.35;opacity:.9;margin-top:8px;}
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="side player">
+      <div class="label"><div class="zh">閒</div><div class="en">PLAYER</div></div>
+    </div>
+    <div class="score" aria-label="Score">
+      <div id="scoreP" class="digit">–</div>
+      <div id="scoreB" class="digit">–</div>
+    </div>
+    <div class="side banker">
+      <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+
+    <!-- LEFT: INPUT -->
+    <div class="panel">
+      <h1>① 按鈕輸入已開過的牌（扣牌）</h1>
+      <div class="muted">只需要輸入牌點即可（花色不影響百家樂點數/補牌規則）。10/J/Q/K 都算 0 點。</div>
+
+      <div class="hr"></div>
+
+      <div class="rowline">
+        <div>
+          <div class="muted">鞋狀態</div>
+          <div id="shoeInfo" class="mono">—</div>
+        </div>
+        <div class="rowline" style="gap:8px;">
+          <button class="btn danger" id="btnNewShoe">新鞋（重燒牌）</button>
+          <button class="btn" id="btnUndo">Undo</button>
+          <button class="btn" id="btnClear">清空已輸入</button>
+        </div>
+      </div>
+
+      <div class="hint" id="burnInfo">—</div>
+
+      <div class="pad" aria-label="Card input">
+        <button class="btn" data-r="A">A</button>
+        <button class="btn" data-r="2">2</button>
+        <button class="btn" data-r="3">3</button>
+        <button class="btn" data-r="4">4</button>
+        <button class="btn" data-r="5">5</button>
+        <button class="btn" data-r="6">6</button>
+        <button class="btn" data-r="7">7</button>
+        <button class="btn" data-r="8">8</button>
+        <button class="btn" data-r="9">9</button>
+        <button class="btn" data-r="10">10</button>
+        <button class="btn" data-r="J">J</button>
+        <button class="btn" data-r="Q">Q</button>
+        <button class="btn" data-r="K">K</button>
+
+        <button class="btn ok" id="btnCalc">計算下一局機率</button>
+      </div>
+
+      <div class="pills" id="pills"></div>
+
+      <div class="hr"></div>
+
+      <div class="rowline">
+        <div>
+          <div class="muted">蒙地卡羅次數</div>
+          <div class="rowline" style="justify-content:flex-start;">
+            <input id="trials" type="number" min="5000" step="5000" value="50000">
+            <span class="muted">（手機建議 20,000~80,000）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">
+        提醒：扣牌越多，機率會跟「理論常態」略微偏移；但通常偏移很小。<br>
+        我做「進取下注建議」會用 EV（期望值）挑相對較好的那一邊，但不保證為正。
+      </div>
+    </div>
+
+    <!-- RIGHT: OUTPUT -->
+    <div class="panel">
+      <h1>③ 下一局：莊 / 閒 / 和 機率（8副牌｜扣牌後｜MC）</h1>
+
+      <div class="probRow">
+        <div class="prob B">
+          <div class="k">莊 勝率</div>
+          <div class="v" id="pB">—</div>
+          <div class="muted mono" id="pB2">—</div>
+        </div>
+        <div class="prob P">
+          <div class="k">閒 勝率</div>
+          <div class="v" id="pP">—</div>
+          <div class="muted mono" id="pP2">—</div>
+        </div>
+        <div class="prob T">
+          <div class="k">和 勝率</div>
+          <div class="v" id="pT">—</div>
+          <div class="muted mono" id="pT2">—</div>
+        </div>
+      </div>
+
+      <div class="ev">
+        <div class="rowline">
+          <div style="font-weight:1100;">下注建議（進取版：看 EV 最大）</div>
+          <div class="rowline" style="gap:8px;">
+            <span class="muted">莊抽水</span>
+            <select id="commission">
+              <option value="0.05" selected>5%（常見）</option>
+              <option value="0.00">0%（免水）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="mono" id="evLine">—</div>
+        <div class="hint">
+          EV 計算：<br>
+          閒：EV = pP*1 - (1-pP)*1 = 2pP - 1<br>
+          莊：EV = pB*(1-水) - (1-pB)*1<br>
+          和（1:8）：EV = pT*8 - (1-pT)*1 = 9pT - 1<br><br>
+          進取版會直接選 EV 最大者（就算 EV 還是負的，也照選「比較不差」的）。
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="muted">最後一次計算耗時：<span class="mono" id="ms">—</span></div>
+      <div class="hint">
+        如果你要「更不保守」：我也可以加「連輸倍投 / 追路策略」那種提示，但那會提升波動風險。你先把算牌功能跑穩，我再幫你加。
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ===========================
+   牌值規則（百家樂）
+   A=1, 2..9=2..9, 10/J/Q/K=0
+   8副牌：每副
+   0點(10/J/Q/K)=16張
+   1..9 各4張
+=========================== */
+
+const DECKS = 8;
+const counts0 = () => {
+  // index 0..9 表示點數 0..9
+  const c = new Array(10).fill(0);
+  c[0] = 16 * DECKS;
+  for (let v=1; v<=9; v++) c[v] = 4 * DECKS;
+  return c;
+};
+
+const state = {
+  shoe: counts0(),
+  burned: new Array(10).fill(0),
+  seen: [], // array of value 0..9
+  inited: false,
+};
+
+const rankToValue = (r) => {
+  if (r === 'A') return 1;
+  if (r === 'J' || r === 'Q' || r === 'K' || r === '10') return 0;
+  const n = parseInt(r,10);
+  if (!Number.isFinite(n) || n<2 || n>9) return null;
+  return n;
+};
+
+function sumCounts(c){ return c.reduce((a,b)=>a+b,0); }
+
+function shoeInfoText(){
+  const left = sumCounts(state.shoe);
+  const used = 416 - left;
+  return `總張數 416｜已扣 ${used}｜剩餘 ${left}`;
+}
+
+function burnText(){
+  const burnedN = sumCounts(state.burned);
+  return `燒牌：已燒 ${burnedN} 張（含翻第一張）｜已輸入扣牌 ${state.seen.length} 張`;
+}
+
+// 加權抽一張牌（按剩餘張數）
+function drawCard(counts){
+  const total = sumCounts(counts);
+  if (total <= 0) return null;
+  let r = Math.floor(Math.random() * total);
+  for (let v=0; v<=9; v++){
+    const k = counts[v];
+    if (r < k){
+      counts[v]--;
+      return v;
+    }
+    r -= k;
+  }
+  return null;
+}
+
+function mod10(x){ return ((x%10)+10)%10; }
+
+function resolveHand(counts){
+  // 回傳 'B'|'P'|'T'
+  const p1 = drawCard(counts), b1 = drawCard(counts);
+  const p2 = drawCard(counts), b2 = drawCard(counts);
+  if (p1===null||b1===null||p2===null||b2===null) return null;
+
+  let pTotal = mod10(p1+p2);
+  let bTotal = mod10(b1+b2);
+
+  // Natural
+  if (pTotal>=8 || bTotal>=8){
+    if (pTotal>bTotal) return 'P';
+    if (bTotal>pTotal) return 'B';
+    return 'T';
+  }
+
+  // Player third card rule
+  let p3 = null;
+  if (pTotal <= 5){
+    p3 = drawCard(counts);
+    if (p3===null) return null;
+    pTotal = mod10(pTotal + p3);
+  }
+
+  // Banker third card rule
+  let b3 = null;
+  if (p3 === null){
+    // player stands
+    if (bTotal <= 5){
+      b3 = drawCard(counts);
+      if (b3===null) return null;
+      bTotal = mod10(bTotal + b3);
+    }
+  } else {
+    // player drew p3
+    const pt = p3; // 0..9
+    if (bTotal <= 2){
+      b3 = drawCard(counts);
+    } else if (bTotal === 3){
+      if (pt !== 8) b3 = drawCard(counts);
+    } else if (bTotal === 4){
+      if (pt >= 2 && pt <= 7) b3 = drawCard(counts);
+    } else if (bTotal === 5){
+      if (pt >= 4 && pt <= 7) b3 = drawCard(counts);
+    } else if (bTotal === 6){
+      if (pt === 6 || pt === 7) b3 = drawCard(counts);
+    } // 7 stands
+    if (b3 !== null){
+      if (b3===null) return null;
+      bTotal = mod10(bTotal + b3);
+    }
+  }
+
+  if (pTotal>bTotal) return 'P';
+  if (bTotal>pTotal) return 'B';
+  return 'T';
+}
+
+function initNewShoe(){
+  state.shoe = counts0();
+  state.burned = new Array(10).fill(0);
+  state.seen = [];
+
+  // 燒牌規則：翻第一張決定「額外燒幾張」，10/J/Q/K=10
+  // 總燒牌 = 1(第一張) + extra
+  const tmp = state.shoe.slice();
+  const first = drawCard(tmp);
+  if (first === null) return;
+
+  const extra = (first === 0) ? 10 : first;
+  const totalBurn = 1 + extra;
+
+  // 真正從 state.shoe 扣掉 totalBurn 張（包含第一張）
+  for (let i=0;i<totalBurn;i++){
+    const v = drawCard(state.shoe);
+    if (v===null) break;
+    state.burned[v]++;
+  }
+
+  state.inited = true;
+  renderAll();
+}
+
+function canRemoveValue(v){
+  return v!==null && v>=0 && v<=9 && state.shoe[v] > 0;
+}
+
+function addSeenRank(r){
+  const v = rankToValue(r);
+  if (v === null) return;
+  if (!canRemoveValue(v)){
+    alert('該點數牌已被扣光（或鞋已空），不能再輸入。');
+    return;
+  }
+  state.shoe[v]--;
+  state.seen.push(v);
+  renderAll();
+}
+
+function undo(){
+  if (state.seen.length===0) return;
+  const v = state.seen.pop();
+  state.shoe[v]++; // 還回去
+  renderAll();
+}
+
+function clearSeen(){
+  // 把 seen 全部加回 shoe
+  for (const v of state.seen) state.shoe[v]++;
+  state.seen = [];
+  renderAll();
+}
+
+function renderPills(){
+  const el = document.getElementById('pills');
+  el.innerHTML = '';
+  const toRank = (v) => v===0 ? '10/J/Q/K' : (v===1 ? 'A' : String(v));
+  state.seen.forEach((v, idx) => {
+    const pill = document.createElement('span');
+    pill.className = 'pill';
+    pill.innerHTML = `<span class="mono">#${idx+1}</span> <span>${toRank(v)}</span> <span class="x" title="移除">×</span>`;
+    pill.querySelector('.x').addEventListener('click', () => {
+      // 移除指定位置：先加回 shoe，再從 seen 刪除
+      state.shoe[v]++;
+      state.seen.splice(idx,1);
+      renderAll();
+    });
+    el.appendChild(pill);
+  });
+}
+
+function setText(id, txt){ document.getElementById(id).textContent = txt; }
+
+function renderAll(){
+  setText('shoeInfo', shoeInfoText());
+  setText('burnInfo', burnText());
+  renderPills();
+}
+
+function fmtPct(x){
+  return (x*100).toFixed(3) + '%';
+}
+
+function calcEV(pP, pB, pT, commission){
+  const evP = 2*pP - 1;
+  const evB = pB*(1-commission) - (1-pB);
+  const evT = 9*pT - 1; // 1:8 tie
+  return {evP, evB, evT};
+}
+
+async function runMC(){
+  if (!state.inited) initNewShoe();
+
+  const trials = Math.max(5000, Math.min(500000, parseInt(document.getElementById('trials').value,10) || 50000));
+  document.getElementById('trials').value = trials;
+
+  // 保護：剩太少牌就不算
+  if (sumCounts(state.shoe) < 60){
+    alert('剩餘牌太少，建議開新鞋。');
+    return;
+  }
+
+  const t0 = performance.now();
+  let wP=0, wB=0, wT=0, bad=0;
+
+  for (let i=0;i<trials;i++){
+    // 每次用一份 counts copy（抽 4~6 張，copy 成本低）
+    const c = state.shoe.slice();
+    const r = resolveHand(c);
+    if (!r){ bad++; continue; }
+    if (r==='P') wP++;
+    else if (r==='B') wB++;
+    else wT++;
+  }
+
+  const n = wP+wB+wT;
+  const pP = n ? (wP/n) : 0;
+  const pB = n ? (wB/n) : 0;
+  const pT = n ? (wT/n) : 0;
+  const t1 = performance.now();
+
+  // 顯示
+  setText('pP', fmtPct(pP)); setText('pB', fmtPct(pB)); setText('pT', fmtPct(pT));
+  setText('pP2', `樣本 ${wP}/${n}`); setText('pB2', `樣本 ${wB}/${n}`); setText('pT2', `樣本 ${wT}/${n}`);
+  setText('ms', (t1-t0).toFixed(0) + ' ms');
+
+  // Top score 暫時顯示「機率最大者」當作提示（你要也可改成顯示上局點數）
+  const maxSide = (pB>=pP && pB>=pT) ? 'B' : (pP>=pB && pP>=pT) ? 'P' : 'T';
+  if (maxSide==='B'){ setText('scoreP',''); setText('scoreB','莊'); }
+  else if (maxSide==='P'){ setText('scoreP','閒'); setText('scoreB',''); }
+  else { setText('scoreP','和'); setText('scoreB',''); }
+
+  // 下注建議（進取：EV 最大）
+  const commission = parseFloat(document.getElementById('commission').value || '0.05');
+  const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
+
+  const pick = [
+    {k:'閒', ev:evP},
+    {k:'莊', ev:evB},
+    {k:'和', ev:evT},
+  ].sort((a,b)=>b.ev-a.ev)[0];
+
+  const line =
+    `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}  → 建議：${pick.k}（EV 最大）`;
+  setText('evLine', line);
+
+  if (bad>0){
+    console.log('bad trials:', bad);
+  }
+}
+
+document.querySelectorAll('[data-r]').forEach(btn=>{
+  btn.addEventListener('click', ()=> addSeenRank(btn.getAttribute('data-r')));
+});
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnClear').addEventListener('click', clearSeen);
+document.getElementById('btnNewShoe').addEventListener('click', initNewShoe);
+document.getElementById('btnCalc').addEventListener('click', runMC);
+document.getElementById('commission').addEventListener('change', ()=> {
+  // 重新按計算即可更新建議；這裡不自動跑，避免手機卡
+});
+
+// 初始化
+initNewShoe();
+</script>
+</body>
+</html>
