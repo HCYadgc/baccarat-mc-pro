@@ -59,6 +59,7 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 12px;
+      min-width:0;
     }
     h1{margin:0 0 8px;font-size:1.25rem;}
     .muted{color:var(--muted);}
@@ -78,11 +79,14 @@
     .btn.danger{background:#ff3b3050;border-color:#ff3b3077;}
     .btn.ok{background:#2e7d3250;border-color:#2e7d3277;}
     .btn.small{padding:8px 8px;font-size:13px;font-weight:900;}
-    .pills{margin-top:8px;}
+
+    .pills{margin-top:8px; display:flex; flex-wrap:wrap; max-width:100%; gap:6px; overflow:hidden;}
     .pill{
       display:inline-flex;align-items:center;gap:8px;
       padding:8px 10px;background:#0000001a;border:1px solid #ffffff20;
-      border-radius:999px;font-weight:1000;margin:6px 6px 0 0;
+      border-radius:999px;font-weight:1000;margin:0;
+      max-width:100%;
+      flex:0 1 auto;
     }
     .pill .x{opacity:.85;cursor:pointer;border:1px solid #ffffff22;border-radius:999px;padding:0 8px;}
     .pill .x:active{transform:scale(.98);}
@@ -91,7 +95,8 @@
     .probRow{display:grid;grid-template-columns: 1fr 1fr 1fr;gap:10px;margin-top:10px;}
     .prob{
       border:1px solid #ffffff20;background:#0000001a;border-radius:16px;
-      padding:10px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;
+      padding:10px;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;
+      min-width:0;
     }
     .prob .k{font-weight:1100;letter-spacing:.5px;}
     .prob .v{font-size:30px;font-weight:1100;}
@@ -103,46 +108,36 @@
       margin-top:10px;border:1px solid #ffffff20;background:#0000001a;border-radius:16px;padding:10px;
     }
     .rowline{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .rowline > *{min-width:0;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; overflow-wrap:anywhere; word-break:break-word;}
     select,input[type="number"]{
       background:#0000002a;border:1px solid #ffffff20;color:var(--text);
       border-radius:12px;padding:10px 10px;font-weight:900;outline:none;
     }
     .hint{color:var(--muted);font-size:13px;line-height:1.35;opacity:.9;margin-top:8px;}
-/* 🔒 防止畫面左右變寬 */
-html, body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
 
-/* 🧱 pills 自動換行，避免撐版 */
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-/* ✅ 修正：避免任何區塊把畫面撐出水平卷軸 */
-html, body { width: 100%; overflow-x: hidden; }
+    /* 🔒 防止畫面左右變寬 */
+    html, body { width:100%; max-width:100%; overflow-x:hidden; }
+    .grid2 { min-width:0; }
 
-/* ✅ grid/flex 子元素允許縮小（很重要，不然內容一長就撐爆） */
-.grid2 { min-width: 0; }
-.panel { min-width: 0; }
-.rowline > * { min-width: 0; }
+    @media (max-width: 480px){
+      .pad { grid-template-columns: repeat(4, 1fr); }
+      #btnCalc { grid-column: span 4; }
+    }
 
-/* ✅ pills：限制最大寬度 + 允許換行 */
-.pills { max-width: 100%; overflow: hidden; gap: 6px; }
-.pill { max-width: 100%; flex: 0 1 auto; }
-.pill span { min-width: 0; }
-
-/* ✅ mono 內容（像 10/J/Q/K、總張數那種）允許斷行 */
-.mono { overflow-wrap: anywhere; word-break: break-word; }
-
-/* ✅ 手機：按鈕 7 欄容易撐出寬度，改成 4 欄最穩 */
-@media (max-width: 480px){
-  .pad { grid-template-columns: repeat(4, 1fr); }
-  #btnCalc { grid-column: span 4; }
-}
-    </style>
+    .miniRow{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+      justify-content:flex-start;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid #ffffff20; background:#00000022;
+      font-weight:900;
+    }
+    .rangeWrap{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    input[type="range"]{ width: 160px; }
+  </style>
 </head>
 
 <body>
@@ -177,7 +172,7 @@ html, body { width: 100%; overflow-x: hidden; }
           <div id="shoeInfo" class="mono">—</div>
         </div>
         <div class="rowline" style="gap:8px;">
-         <button class="btn danger" id="btnNewShoe">新鞋（重置）</button>
+          <button class="btn danger" id="btnNewShoe">新鞋（重置）</button>
           <button class="btn" id="btnUndo">Undo</button>
           <button class="btn" id="btnClear">清空已輸入</button>
         </div>
@@ -217,7 +212,7 @@ html, body { width: 100%; overflow-x: hidden; }
 
       <div class="hint">
         提醒：扣牌越多，機率會跟「理論常態」略微偏移；但通常偏移很小。<br>
-        我做「進取下注建議」會用 EV（期望值）挑相對較好的那一邊，但不保證為正。
+        下面「實戰派牌路修正」是經驗權重：你可以調小、調大、或關閉。
       </div>
     </div>
 
@@ -230,84 +225,127 @@ html, body { width: 100%; overflow-x: hidden; }
           <div class="k">莊 勝率</div>
           <div class="v" id="pB">—</div>
           <div class="muted mono" id="pB2">—</div>
+          <div class="muted mono" id="pB_adj">修正後：—</div>
         </div>
         <div class="prob P">
           <div class="k">閒 勝率</div>
           <div class="v" id="pP">—</div>
           <div class="muted mono" id="pP2">—</div>
+          <div class="muted mono" id="pP_adj">修正後：—</div>
         </div>
         <div class="prob T">
           <div class="k">和 勝率</div>
           <div class="v" id="pT">—</div>
           <div class="muted mono" id="pT2">—</div>
+          <div class="muted mono" id="pT_adj">修正後：—</div>
         </div>
       </div>
 
+      <div class="ev">
+        <div class="rowline">
+          <div style="font-weight:1100;">下注建議（激進模式）</div>
+          <div class="rowline" style="gap:8px;">
+            <span class="muted">莊抽水</span>
+            <select id="commission">
+              <option value="0.05" selected>5%（常見）</option>
+              <option value="0.00">0%（免水）</option>
+            </select>
+          </div>
+        </div>
 
-  <div class="ev">
-  <div class="rowline">
-    <div style="font-weight:1100;">下注建議（激進模式）</div>
-    <div class="rowline" style="gap:8px;">
-      <span class="muted">莊抽水</span>
-      <select id="commission">
-        <option value="0.05" selected>5%（常見）</option>
-        <option value="0.00">0%（免水）</option>
-      </select>
-    </div>
-  </div>
+        <div class="hr"></div>
 
-  <div class="hr"></div>
+        <div class="rowline" style="gap:8px;">
+          <span class="muted">策略</span>
+          <select id="strategy">
+            <option value="evmax" selected>EV 最大（偏激進：永遠下注）</option>
+            <option value="negok">容忍負EV也下注（更激進）</option>
+            <option value="follow">追路（連莊/連閒就跟）</option>
+            <option value="fade">反向（連莊/連閒就反買）</option>
+            <option value="martingale">馬丁倍壓（輸就倍壓，上限封頂）</option>
+          </select>
 
-  <div class="rowline" style="gap:8px;">
-    <span class="muted">策略</span>
-    <select id="strategy">
-      <option value="evmax" selected>EV 最大（偏激進：永遠下注）</option>
-      <option value="negok">容忍負EV也下注（更激進）</option>
-      <option value="follow">追路（連莊/連閒就跟）</option>
-      <option value="fade">反向（連莊/連閒就反買）</option>
-      <option value="martingale">馬丁倍壓（輸就倍壓，上限封頂）</option>
-    </select>
+          <span class="muted">負EV容忍</span>
+          <input id="negTol" type="number" step="0.001" value="-0.010" style="width:110px;">
+          <span class="muted mono">(例 -0.010)</span>
+        </div>
 
-    <span class="muted">負EV容忍</span>
-    <input id="negTol" type="number" step="0.001" value="-0.010" style="width:110px;">
-    <span class="muted mono">(例 -0.010)</span>
-  </div>
+        <div class="rowline" style="gap:8px;margin-top:8px;">
+          <span class="muted">追路/反向 需要連續</span>
+          <input id="streakN" type="number" min="2" step="1" value="2" style="width:80px;">
+          <span class="muted">次才觸發</span>
 
-  <div class="rowline" style="gap:8px;margin-top:8px;">
-    <span class="muted">追路/反向 需要連續</span>
-    <input id="streakN" type="number" min="2" step="1" value="2" style="width:80px;">
-    <span class="muted">次才觸發</span>
+          <span class="muted">馬丁上限</span>
+          <input id="martCap" type="number" min="2" step="1" value="8" style="width:80px;">
+          <span class="muted">單位</span>
+        </div>
 
-    <span class="muted">馬丁上限</span>
-    <input id="martCap" type="number" min="2" step="1" value="8" style="width:80px;">
-    <span class="muted">單位</span>
-  </div>
+        <div class="hr"></div>
 
-  <div class="hr"></div>
+        <!-- ✅ 實戰派：牌路修正 -->
+        <div class="rowline">
+          <div style="font-weight:1100;">實戰派：牌路修正（可調）</div>
+          <div class="miniRow">
+            <label class="chip">
+              <input id="roadOn" type="checkbox" checked>
+              啟用修正
+            </label>
+            <label class="chip">
+              最近 <input id="roadWin" type="number" min="6" max="60" step="2" value="18" style="width:80px;">
+              手
+            </label>
+          </div>
+        </div>
 
-  <div class="mono" id="evLine">—</div>
-  <div class="mono" id="betLine" style="margin-top:6px;">—</div>
+        <div class="hr"></div>
 
-  <div class="hr"></div>
+        <div class="miniRow">
+          <div class="rangeWrap">
+            <span class="muted">連莊/連閒（順勢）</span>
+            <input id="wTrend" type="range" min="0" max="30" value="10">
+            <span class="mono" id="wTrendV">0.010</span>
+          </div>
+          <div class="rangeWrap">
+            <span class="muted">斬龍/跳（逆勢）</span>
+            <input id="wChop" type="range" min="0" max="30" value="8">
+            <span class="mono" id="wChopV">0.008</span>
+          </div>
+          <div class="rangeWrap">
+            <span class="muted">和局偏高</span>
+            <input id="wTie" type="range" min="0" max="30" value="6">
+            <span class="mono" id="wTieV">0.006</span>
+          </div>
+        </div>
 
-  <div class="rowline" style="justify-content:flex-start; gap:8px;">
-    <span class="muted">記錄上一局結果（用來追路/倍壓）</span>
-    <button class="btn small" id="recB">莊</button>
-    <button class="btn small" id="recP">閒</button>
-    <button class="btn small" id="recT">和</button>
-    <button class="btn small danger" id="recClear">清空紀錄</button>
-  </div>
+        <div class="hint">
+          說明：<br>
+          1) 你用下面「記錄上一局結果」去餵牌路（莊/閒/和）。<br>
+          2) 修正幅度是「微調」：預設每個權重最大約 3% 內的拉動（可自行調大/調小）。<br>
+          3) 若你只想看純扣牌 MC，就把「啟用修正」關掉。
+        </div>
 
-  <div class="hint">
-    ⚠️ 激進策略會讓波動變很大（尤其馬丁/追路）。我用「單位」表示，不建議用真金額硬追。
-  </div>
-</div>
+        <div class="hr"></div>
+
+        <div class="mono" id="evLine">—</div>
+        <div class="mono" id="betLine" style="margin-top:6px;">—</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="rowline" style="justify-content:flex-start; gap:8px;">
+        <span class="muted">記錄上一局結果（用來追路/倍壓/牌路修正）</span>
+        <button class="btn small" id="recB">莊</button>
+        <button class="btn small" id="recP">閒</button>
+        <button class="btn small" id="recT">和</button>
+        <button class="btn small danger" id="recClear">清空紀錄</button>
+      </div>
+
+      <div class="hint">
+        ⚠️ 激進策略會讓波動變很大（尤其馬丁/追路）。我用「單位」表示，不建議用真金額硬追。
+      </div>
 
       <div class="hr"></div>
       <div class="muted">最後一次計算耗時：<span class="mono" id="ms">—</span></div>
-      <div class="hint">
-        如果你要「更不保守」：我也可以加「連輸倍投 / 追路策略」那種提示，但那會提升波動風險。你先把算牌功能跑穩，我再幫你加。
-      </div>
     </div>
 
   </div>
@@ -323,7 +361,6 @@ const betState = {
 };
 
 function lastNonTieStreak(hist){
-  // 回傳 {side, len}，只看最後一段連莊/連閒（忽略和）
   let i = hist.length - 1;
   while (i >= 0 && hist[i] === 'T') i--;
   if (i < 0) return {side:null, len:0};
@@ -347,6 +384,139 @@ function sideName(s){
   return s==='B' ? '莊' : s==='P' ? '閒' : '和';
 }
 
+function setText(id, txt){
+  const el = document.getElementById(id);
+  if (el) el.textContent = txt;
+}
+
+function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
+
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+function calcEV(pP, pB, pT, commission){
+  const evP = 2*pP - 1;
+  const evB = pB*(1-commission) - (1-pB);
+  const evT = 9*pT - 1; // 1:8 tie
+  return {evP, evB, evT};
+}
+
+//===========================
+// ✅ 實戰派：牌路修正（權重模型）
+function getRoadParams(){
+  const on = !!document.getElementById('roadOn')?.checked;
+  const win = Math.max(6, Math.min(60, parseInt(document.getElementById('roadWin')?.value,10) || 18));
+  // range 0..30 → 0..0.030
+  const wTrend = (parseInt(document.getElementById('wTrend')?.value,10) || 0) / 1000;
+  const wChop  = (parseInt(document.getElementById('wChop')?.value,10) || 0) / 1000;
+  const wTie   = (parseInt(document.getElementById('wTie')?.value,10) || 0) / 1000;
+  return {on, win, wTrend, wChop, wTie};
+}
+
+function updateRoadParamLabels(){
+  const p = getRoadParams();
+  setText('wTrendV', p.wTrend.toFixed(3));
+  setText('wChopV',  p.wChop.toFixed(3));
+  setText('wTieV',   p.wTie.toFixed(3));
+}
+
+// 取得最近牌路特徵（只看最後 win 手）
+function roadFeatures(hist, win){
+  const recent = hist.slice(-win);
+  const nonTie = recent.filter(x=>x!=='T');
+  const last = nonTie.length ? nonTie[nonTie.length-1] : null;
+
+  // streak
+  let streakSide = null, streakLen = 0;
+  if (nonTie.length){
+    streakSide = nonTie[nonTie.length-1];
+    for (let i=nonTie.length-1;i>=0;i--){
+      if (nonTie[i] === streakSide) streakLen++;
+      else break;
+    }
+  }
+
+  // chop rate（交替率）：相鄰是否不同
+  let switches=0, pairs=0;
+  for (let i=1;i<nonTie.length;i++){
+    pairs++;
+    if (nonTie[i] !== nonTie[i-1]) switches++;
+  }
+  const chopRate = pairs ? switches/pairs : 0;
+
+  // tie rate
+  const tieRate = recent.length ? recent.filter(x=>'T'===x).length / recent.length : 0;
+
+  return {recent, nonTie, last, streakSide, streakLen, chopRate, tieRate};
+}
+
+// 實戰派修正：微調 pB/pP/pT 並重正規化
+function applyRoadAdjust(pP, pB, pT, hist){
+  const p = getRoadParams();
+  if (!p.on) return {pP, pB, pT, note:'修正關閉'};
+
+  const f = roadFeatures(hist, p.win);
+
+  // 基準和局率大約 ~0.095（8副牌理論），做「偏高」才推
+  const baseTie = 0.095;
+
+  let dB = 0, dP = 0, dT = 0;
+  let notes = [];
+
+  // 1) 順勢：連莊/連閒越長，小幅推同邊
+  if (f.streakSide && f.streakLen >= 2){
+    const k = clamp((f.streakLen - 1) / 6, 0, 1); // 2~7手逐步飽和
+    const push = p.wTrend * k; // 0..wTrend
+    if (f.streakSide === 'B'){ dB += push; dP -= push; notes.push(`順勢+${push.toFixed(3)}(莊連${f.streakLen})`); }
+    if (f.streakSide === 'P'){ dP += push; dB -= push; notes.push(`順勢+${push.toFixed(3)}(閒連${f.streakLen})`); }
+  }
+
+  // 2) 斬龍/跳：若 chopRate 高（常換邊），推「反向」一點點
+  if (f.last && f.nonTie.length >= 6){
+    const k = clamp((f.chopRate - 0.55) / 0.35, 0, 1); // >0.55 才開始偏跳
+    const push = p.wChop * k;
+    if (push > 0){
+      const opp = opposite(f.last);
+      if (opp === 'B'){ dB += push; dP -= push; notes.push(`跳路+${push.toFixed(3)}(偏反買)`); }
+      if (opp === 'P'){ dP += push; dB -= push; notes.push(`跳路+${push.toFixed(3)}(偏反買)`); }
+    }
+  }
+
+  // 3) 和局偏高：最近 tieRate 高於 baseTie → 小幅推和
+  if (f.recent.length >= 10){
+    const k = clamp((f.tieRate - baseTie) / 0.08, 0, 1); // 高到 +8% 時飽和
+    const push = p.wTie * k;
+    if (push > 0){
+      dT += push;
+      // 和推上去，從 B/P 平均扣回
+      dB -= push/2;
+      dP -= push/2;
+      notes.push(`和偏高+${push.toFixed(3)}(tie ${Math.round(f.tieRate*100)}%)`);
+    }
+  }
+
+  // 套用
+  let aB = pB + dB;
+  let aP = pP + dP;
+  let aT = pT + dT;
+
+  // 防爆：先下限，再重正規化
+  aB = clamp(aB, 0.001, 0.999);
+  aP = clamp(aP, 0.001, 0.999);
+  aT = clamp(aT, 0.001, 0.999);
+
+  const s = aB + aP + aT;
+  aB /= s; aP /= s; aT /= s;
+
+  // 最後再保護一次
+  const s2 = aB + aP + aT;
+  aB /= s2; aP /= s2; aT /= s2;
+
+  const note = notes.length ? notes.join('｜') : '無顯著牌路訊號';
+  return {pP:aP, pB:aB, pT:aT, note};
+}
+
+//===========================
+// 下注策略
 function pickByStrategy(pP, pB, pT){
   const commission = parseFloat(document.getElementById('commission').value || '0.05');
   const strategy = document.getElementById('strategy').value;
@@ -355,7 +525,6 @@ function pickByStrategy(pP, pB, pT){
 
   const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
 
-  // EV 最大（永遠下注）
   const evList = [
     {side:'P', ev:evP},
     {side:'B', ev:evB},
@@ -363,14 +532,12 @@ function pickByStrategy(pP, pB, pT){
   ].sort((a,b)=>b.ev-a.ev);
   const best = evList[0];
 
-  // 追路 / 反向（以結果連續為主，沒觸發就回 EVmax）
   const streak = lastNonTieStreak(betState.history);
 
   let pick = best.side;
   let reason = `EV最大`;
 
   if (strategy === 'negok'){
-    // 更激進：只要 EV >= negTol 就照下注（否則仍下注 EVmax，但會警告）
     pick = best.side;
     reason = `容忍負EV（門檻 ${negTol}）`;
   }
@@ -396,14 +563,11 @@ function pickByStrategy(pP, pB, pT){
   }
 
   if (strategy === 'martingale'){
-    // 馬丁：用 EVmax 當方向，單位由紀錄結果決定
     pick = best.side;
     reason = `馬丁：方向=EV最大，單位看輸贏`;
   }
 
-  // 顯示 EV
   setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜策略：${reason}`);
-
   return {pick, best, evP, evB, evT, negTol, strategy};
 }
 
@@ -413,7 +577,6 @@ function updateBetUI(pP, pB, pT){
   const out = pickByStrategy(pP, pB, pT);
   let unit = betState.unit;
 
-  // negok：如果 EV 最大仍小於門檻，顯示「仍下注但很負」
   if (out.strategy === 'negok'){
     if (out.best.ev < out.negTol){
       setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜⚠️ EV=${out.best.ev.toFixed(5)} < ${out.negTol}（仍照押，超激進）`);
@@ -430,17 +593,16 @@ function updateBetUI(pP, pB, pT){
   betState.lastPick = out.pick;
 }
 
-// ====== 記錄結果按鈕 ======
+// 記錄結果按鈕
 function recordResult(r){
   betState.history.push(r);
 
   const martCap = Math.max(2, parseInt(document.getElementById('martCap').value,10) || 8);
   const strategy = document.getElementById('strategy').value;
 
-  // 馬丁：依上一把建議方向的輸贏更新 unit
   if (strategy === 'martingale' && betState.lastPick){
     if (r === 'T'){
-      // 和：通常 push，單位不變
+      // 和：單位不變
     } else if (r === betState.lastPick){
       betState.unit = 1;
     } else {
@@ -449,26 +611,10 @@ function recordResult(r){
   }
 }
 
-document.getElementById('recB').addEventListener('click', ()=>{ recordResult('B'); });
-document.getElementById('recP').addEventListener('click', ()=>{ recordResult('P'); });
-document.getElementById('recT').addEventListener('click', ()=>{ recordResult('T'); });
-document.getElementById('recClear').addEventListener('click', ()=>{
-  betState.history = [];
-  betState.unit = 1;
-  betState.lastPick = null;
-  setText('betLine', '—');
-});
-
-// 策略/參數改動後，建議你重新按「計算下一局機率」再更新建議
-document.getElementById('strategy').addEventListener('change', ()=>{});
-document.getElementById('negTol').addEventListener('change', ()=>{});
-document.getElementById('streakN').addEventListener('change', ()=>{});
-document.getElementById('martCap').addEventListener('change', ()=>{});
 //===========================
-
+// ====== 扣牌 + MC 主體 ======
 const DECKS = 8;
 const counts0 = () => {
-  // index 0..9 表示點數 0..9
   const c = new Array(10).fill(0);
   c[0] = 16 * DECKS;
   for (let v=1; v<=9; v++) c[v] = 4 * DECKS;
@@ -477,7 +623,7 @@ const counts0 = () => {
 
 const state = {
   shoe: counts0(),
-  seen: [], // array of value 0..9
+  seen: [],
   inited: false,
 };
 
@@ -497,7 +643,6 @@ function shoeInfoText(){
   return `總張數 416｜已扣 ${used}｜剩餘 ${left}`;
 }
 
-// 加權抽一張牌（按剩餘張數）
 function drawCard(counts){
   const total = sumCounts(counts);
   if (total <= 0) return null;
@@ -516,7 +661,6 @@ function drawCard(counts){
 function mod10(x){ return ((x%10)+10)%10; }
 
 function resolveHand(counts){
-  // 回傳 'B'|'P'|'T'
   const p1 = drawCard(counts), b1 = drawCard(counts);
   const p2 = drawCard(counts), b2 = drawCard(counts);
   if (p1===null||b1===null||p2===null||b2===null) return null;
@@ -524,14 +668,12 @@ function resolveHand(counts){
   let pTotal = mod10(p1+p2);
   let bTotal = mod10(b1+b2);
 
-  // Natural
   if (pTotal>=8 || bTotal>=8){
     if (pTotal>bTotal) return 'P';
     if (bTotal>pTotal) return 'B';
     return 'T';
   }
 
-  // Player third card rule
   let p3 = null;
   if (pTotal <= 5){
     p3 = drawCard(counts);
@@ -539,18 +681,15 @@ function resolveHand(counts){
     pTotal = mod10(pTotal + p3);
   }
 
-  // Banker third card rule
   let b3 = null;
   if (p3 === null){
-    // player stands
     if (bTotal <= 5){
       b3 = drawCard(counts);
       if (b3===null) return null;
       bTotal = mod10(bTotal + b3);
     }
   } else {
-    // player drew p3
-    const pt = p3; // 0..9
+    const pt = p3;
     if (bTotal <= 2){
       b3 = drawCard(counts);
     } else if (bTotal === 3){
@@ -561,9 +700,8 @@ function resolveHand(counts){
       if (pt >= 4 && pt <= 7) b3 = drawCard(counts);
     } else if (bTotal === 6){
       if (pt === 6 || pt === 7) b3 = drawCard(counts);
-    } // 7 stands
+    }
     if (b3 !== null){
-      if (b3===null) return null;
       bTotal = mod10(bTotal + b3);
     }
   }
@@ -574,7 +712,7 @@ function resolveHand(counts){
 }
 
 function initNewShoe(){
-  state.shoe = counts0();   // 8 副完整牌
+  state.shoe = counts0();
   state.seen = [];
   state.inited = true;
   renderAll();
@@ -599,23 +737,24 @@ function addSeenRank(r){
 function undo(){
   if (state.seen.length===0) return;
   const v = state.seen.pop();
-  state.shoe[v]++; // 還回去
+  state.shoe[v]++;
   renderAll();
 }
 
 function clearSeen(){
-  // 把 seen 全部加回 shoe
   for (const v of state.seen) state.shoe[v]++;
   state.seen = [];
   renderAll();
 }
+
 function clearSeenUIOnly(){
-  // 只清畫面，不把牌加回 shoe（扣牌保留）
   state.seen = [];
   renderAll();
 }
+
 function renderPills(){
   const el = document.getElementById('pills');
+  if (!el) return;
   el.innerHTML = '';
   const toRank = (v) => v===0 ? '10/J/Q/K' : (v===1 ? 'A' : String(v));
   state.seen.forEach((v, idx) => {
@@ -623,7 +762,6 @@ function renderPills(){
     pill.className = 'pill';
     pill.innerHTML = `<span class="mono">#${idx+1}</span> <span>${toRank(v)}</span> <span class="x" title="移除">×</span>`;
     pill.querySelector('.x').addEventListener('click', () => {
-      // 移除指定位置：先加回 shoe，再從 seen 刪除
       state.shoe[v]++;
       state.seen.splice(idx,1);
       renderAll();
@@ -632,31 +770,19 @@ function renderPills(){
   });
 }
 
-function setText(id, txt){ document.getElementById(id).textContent = txt; }
-
 function renderAll(){
   setText('shoeInfo', shoeInfoText());
   renderPills();
 }
 
-function fmtPct(x){
-  return (x*100).toFixed(3) + '%';
-}
-
-function calcEV(pP, pB, pT, commission){
-  const evP = 2*pP - 1;
-  const evB = pB*(1-commission) - (1-pB);
-  const evT = 9*pT - 1; // 1:8 tie
-  return {evP, evB, evT};
-}
-
 async function runMC(){
   if (!state.inited) initNewShoe();
+
+  updateRoadParamLabels();
 
   const trials = Math.max(5000, Math.min(500000, parseInt(document.getElementById('trials').value,10) || 50000));
   document.getElementById('trials').value = trials;
 
-  // 保護：剩太少牌就不算
   if (sumCounts(state.shoe) < 60){
     alert('剩餘牌太少，建議開新鞋。');
     return;
@@ -666,7 +792,6 @@ async function runMC(){
   let wP=0, wB=0, wT=0, bad=0;
 
   for (let i=0;i<trials;i++){
-    // 每次用一份 counts copy（抽 4~6 張，copy 成本低）
     const c = state.shoe.slice();
     const r = resolveHand(c);
     if (!r){ bad++; continue; }
@@ -681,35 +806,43 @@ async function runMC(){
   const pT = n ? (wT/n) : 0;
   const t1 = performance.now();
 
-  // 顯示
+  // 原始顯示
   setText('pP', fmtPct(pP)); setText('pB', fmtPct(pB)); setText('pT', fmtPct(pT));
   setText('pP2', `樣本 ${wP}/${n}`); setText('pB2', `樣本 ${wB}/${n}`); setText('pT2', `樣本 ${wT}/${n}`);
   setText('ms', (t1-t0).toFixed(0) + ' ms');
 
-  // Top score 暫時顯示「機率最大者」當作提示（你要也可改成顯示上局點數）
-  const maxSide = (pB>=pP && pB>=pT) ? 'B' : (pP>=pB && pP>=pT) ? 'P' : 'T';
+  // ✅ 實戰派：牌路修正（用 betState.history）
+  const adj = applyRoadAdjust(pP, pB, pT, betState.history);
+
+  setText('pP_adj', `修正後：${fmtPct(adj.pP)}`);
+  setText('pB_adj', `修正後：${fmtPct(adj.pB)}`);
+  setText('pT_adj', `修正後：${fmtPct(adj.pT)}`);
+
+  // 顯示 topbar：不要只顯示「下莊」，改成顯示「建議下：X」
+  const maxSide = (adj.pB>=adj.pP && adj.pB>=adj.pT) ? 'B' : (adj.pP>=adj.pB && adj.pP>=adj.pT) ? 'P' : 'T';
   if (maxSide==='B'){ setText('scoreP',''); setText('scoreB','莊'); }
   else if (maxSide==='P'){ setText('scoreP','閒'); setText('scoreB',''); }
   else { setText('scoreP','和'); setText('scoreB',''); }
 
-  // 下注建議（進取：EV 最大）
+  // ✅ EV/下注：以「修正後」為主，但也把修正原因帶上
   const commission = parseFloat(document.getElementById('commission').value || '0.05');
-  const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
+  const rawEV = calcEV(pP, pB, pT, commission);
+  const adjEV = calcEV(adj.pP, adj.pB, adj.pT, commission);
 
-  const pick = [
-    {k:'閒', ev:evP},
-    {k:'莊', ev:evB},
-    {k:'和', ev:evT},
-  ].sort((a,b)=>b.ev-a.ev)[0];
+  setText(
+    'evLine',
+    `原始EV：閒=${rawEV.evP.toFixed(5)}｜莊=${rawEV.evB.toFixed(5)}｜和=${rawEV.evT.toFixed(5)}  ` +
+    `｜修正EV：閒=${adjEV.evP.toFixed(5)}｜莊=${adjEV.evB.toFixed(5)}｜和=${adjEV.evT.toFixed(5)}  ` +
+    `｜牌路：${adj.note}`
+  );
 
-  const line =
-    `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}  → 建議：${pick.k}（EV 最大）`;
-  setText('evLine', line);
-if (typeof updateBetUI === 'function') updateBetUI(pP, pB, pT);
-clearSeenUIOnly();
-  if (bad>0){
-    console.log('bad trials:', bad);
-  }
+  // 下注建議/策略用修正後勝率（實戰派）
+  if (typeof updateBetUI === 'function') updateBetUI(adj.pP, adj.pB, adj.pT);
+
+  // 你原本設計：算完就把「這次輸入牌」清掉，但扣牌保留
+  clearSeenUIOnly();
+
+  if (bad>0) console.log('bad trials:', bad);
 }
 
 function on(id, ev, fn){
@@ -718,6 +851,7 @@ function on(id, ev, fn){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  updateRoadParamLabels();
 
   // ✅ 牌按鈕：事件委派（最穩）
   const pad = document.querySelector('.pad');
@@ -734,7 +868,7 @@ window.addEventListener('DOMContentLoaded', () => {
   on('btnNewShoe', 'click', initNewShoe);
   on('btnCalc', 'click', runMC);
 
-  // 激進策略紀錄按鈕（有就綁，沒有就跳過，不會炸）
+  // 牌路/策略紀錄
   on('recB', 'click', ()=> recordResult('B'));
   on('recP', 'click', ()=> recordResult('P'));
   on('recT', 'click', ()=> recordResult('T'));
@@ -743,11 +877,18 @@ window.addEventListener('DOMContentLoaded', () => {
     betState.unit = 1;
     betState.lastPick = null;
     setText('betLine', '—');
+    // 同步把修正後顯示清一下
+    setText('pP_adj', '修正後：—');
+    setText('pB_adj', '修正後：—');
+    setText('pT_adj', '修正後：—');
   });
 
-  on('commission', 'change', ()=>{});
+  // 參數改動 → 只更新數字顯示，不自動跑 MC（避免手機卡）
+  ['roadOn','roadWin','wTrend','wChop','wTie'].forEach(id=>{
+    on(id, 'input', updateRoadParamLabels);
+    on(id, 'change', updateRoadParamLabels);
+  });
 
-  // 初始化
   initNewShoe();
 });
 </script>
