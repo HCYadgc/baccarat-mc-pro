@@ -559,25 +559,11 @@ function resolveHand(counts){
 }
 
 function initNewShoe(){
-  state.shoe = counts0();
-  state.burned = new Array(10).fill(0);
+  state.shoe = counts0();   // 8 副完整牌
   state.seen = [];
-
-  // 燒牌規則：翻第一張決定「額外燒幾張」，10/J/Q/K=10
-  // 總燒牌 = 1(第一張) + extra
-  const tmp = state.shoe.slice();
-  const first = drawCard(tmp);
-  if (first === null) return;
-
-  const extra = (first === 0) ? 10 : first;
-  const totalBurn = 1 + extra;
-
-  // 真正從 state.shoe 扣掉 totalBurn 張（包含第一張）
-  for (let i=0;i<totalBurn;i++){
-    const v = drawCard(state.shoe);
-    if (v===null) break;
-    state.burned[v]++;
-  }
+  state.inited = true;
+  renderAll();
+}
 
   state.inited = true;
   renderAll();
