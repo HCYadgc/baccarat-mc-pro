@@ -456,7 +456,6 @@ const counts0 = () => {
 
 const state = {
   shoe: counts0(),
-  burned: new Array(10).fill(0),
   seen: [], // array of value 0..9
   inited: false,
 };
@@ -475,11 +474,6 @@ function shoeInfoText(){
   const left = sumCounts(state.shoe);
   const used = 416 - left;
   return `總張數 416｜已扣 ${used}｜剩餘 ${left}`;
-}
-
-function burnText(){
-  const burnedN = sumCounts(state.burned);
-  return `燒牌：已燒 ${burnedN} 張（含翻第一張）｜已輸入扣牌 ${state.seen.length} 張`;
 }
 
 // 加權抽一張牌（按剩餘張數）
@@ -625,7 +619,6 @@ function setText(id, txt){ document.getElementById(id).textContent = txt; }
 
 function renderAll(){
   setText('shoeInfo', shoeInfoText());
-  setText('burnInfo', burnText());
   renderPills();
 }
 
