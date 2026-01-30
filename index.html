@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>百家樂 PRO｜按鈕輸入扣牌｜8副牌蒙地卡羅（實戰派）</title>
+  <title>百家樂 PRO｜按鈕輸入扣牌｜8副牌蒙地卡羅</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -29,6 +29,7 @@
       padding: 18px 14px 24px;
     }
     .app{max-width:1100px;margin:0 auto;}
+
     .topbar{
       display:grid; grid-template-columns: 1fr auto 1fr;
       gap:10px; border-radius:28px; overflow:hidden;
@@ -40,19 +41,36 @@
     .label{display:flex;flex-direction:column;gap:2px;font-weight:1000;letter-spacing:.6px;line-height:1.05;}
     .label .zh{font-size:40px;text-shadow:0 2px 0 rgba(0,0,0,.25);}
     .label .en{font-size:18px;opacity:.95;}
+
     .score{
       display:flex;align-items:center;justify-content:center;
       padding:10px 12px;background:#0000002b;
       border-left:1px solid #ffffff1c;border-right:1px solid #ffffff1c;
-      min-width:220px;
+      min-width:180px;
+      position:relative;
     }
     .score .digit{
-      font-size:40px;font-weight:1100;padding:0 12px;line-height:1;color:#fff;
-      text-shadow:0 3px 0 rgba(0,0,0,.25); white-space:nowrap;
+      font-size:54px;font-weight:1100;line-height:1;color:#fff;
+      text-shadow:0 3px 0 rgba(0,0,0,.25);
+      padding:0 6px;
+      white-space:nowrap;
+    }
+    /* ✅ 上面只顯示：莊/閒/和（不顯示 建議/單位） */
+    #scoreP,#scoreB{opacity:.0; width:0; padding:0; margin:0;}
+    #scoreOnly{
+      font-size:56px;font-weight:1100;
+      text-shadow:0 3px 0 rgba(0,0,0,.25);
+      letter-spacing:2px;
+    }
+    .scoreHint{
+      position:absolute; bottom:6px; left:50%;
+      transform:translateX(-50%);
+      font-size:12px; color:var(--muted); opacity:.85;
+      white-space:nowrap;
     }
 
-    .grid2{margin-top:12px;display:grid;grid-template-columns: 520px 1fr;gap:12px;min-width:0;}
-    @media (max-width: 980px){ .grid2{grid-template-columns:1fr;} .score{min-width:200px;} }
+    .grid2{margin-top:12px;display:grid;grid-template-columns: 520px 1fr;gap:12px;}
+    @media (max-width: 980px){ .grid2{grid-template-columns:1fr;} .score{min-width:160px;} }
 
     .panel{
       background: linear-gradient(180deg, #ffffff10, #00000010);
@@ -67,19 +85,18 @@
     .hr{height:1px;background:#ffffff14;margin:10px 0;}
 
     /* ---- input pad ---- */
-    .pad{display:grid;grid-template-columns: repeat(7, 1fr);gap:8px;margin-top:10px;min-width:0;}
+    .pad{display:grid;grid-template-columns: repeat(7, 1fr);gap:8px;margin-top:10px;}
     .btn{
       appearance:none;border:none;
       background:#ffffff14;border:1px solid #ffffff20;color:var(--text);
       padding:10px 8px;border-radius:14px;
       font-weight:1000;cursor:pointer;user-select:none;
-      min-width:0;
     }
     .btn:hover{background:#ffffff1a;}
     .btn:active{transform:scale(.99);}
     .btn.danger{background:#ff3b3050;border-color:#ff3b3077;}
     .btn.ok{background:#2e7d3250;border-color:#2e7d3277;}
-    .btn.small{padding:8px 8px;font-size:13px;font-weight:900;}
+    .btn.small{padding:8px 10px;font-size:13px;font-weight:900;}
 
     .pills{margin-top:8px; display:flex; flex-wrap:wrap; max-width:100%; gap:6px; overflow:hidden;}
     .pill{
@@ -96,7 +113,7 @@
     .probRow{display:grid;grid-template-columns: 1fr 1fr 1fr;gap:10px;margin-top:10px;}
     .prob{
       border:1px solid #ffffff20;background:#0000001a;border-radius:16px;
-      padding:10px;min-height:118px;display:flex;flex-direction:column;justify-content:space-between;
+      padding:10px;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;
       min-width:0;
     }
     .prob .k{font-weight:1100;letter-spacing:.5px;}
@@ -110,23 +127,26 @@
     }
     .rowline{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
     .rowline > *{min-width:0;}
-    .mono{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      overflow-wrap:anywhere; word-break:break-word;
-    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; overflow-wrap:anywhere; word-break:break-word;}
     select,input[type="number"]{
       background:#0000002a;border:1px solid #ffffff20;color:var(--text);
       border-radius:12px;padding:10px 10px;font-weight:900;outline:none;
     }
     .hint{color:var(--muted);font-size:13px;line-height:1.35;opacity:.9;margin-top:8px;}
 
+    /* 🔒 防止畫面左右變寬 */
     html, body { width:100%; max-width:100%; overflow-x:hidden; }
+    .grid2 { min-width:0; }
+
     @media (max-width: 480px){
       .pad { grid-template-columns: repeat(4, 1fr); }
       #btnCalc { grid-column: span 4; }
     }
 
-    .miniRow{display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-start;}
+    .miniRow{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+      justify-content:flex-start;
+    }
     .chip{
       display:inline-flex; align-items:center; gap:8px;
       padding:6px 10px; border-radius:999px;
@@ -135,6 +155,23 @@
     }
     .rangeWrap{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
     input[type="range"]{ width: 160px; }
+
+    /* ✅ 固定上面：莊/閒/和 快速按鈕 */
+    .quickRec{
+      position: sticky;
+      top: 8px;
+      z-index: 80;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+      padding:10px;
+      margin:10px 0 6px;
+      border:1px solid #ffffff20;
+      background:#00000035;
+      border-radius:16px;
+      backdrop-filter: blur(8px);
+    }
   </style>
 </head>
 
@@ -146,13 +183,27 @@
     <div class="side player">
       <div class="label"><div class="zh">閒</div><div class="en">PLAYER</div></div>
     </div>
-    <div class="score" aria-label="Score">
-      <div id="scoreP" class="digit">建議：—</div>
-      <div id="scoreB" class="digit"></div>
+
+    <!-- ✅ 中間只顯示：莊/閒/和 -->
+    <div class="score" aria-label="Pick">
+      <div id="scoreP" class="digit">—</div>
+      <div id="scoreB" class="digit">—</div>
+
+      <div id="scoreOnly">—</div>
+      <div class="scoreHint">下一把推薦</div>
     </div>
+
     <div class="side banker">
       <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
     </div>
+  </div>
+
+  <!-- ✅ 固定在上面：莊/閒/和 -->
+  <div class="quickRec" aria-label="快速記錄上局">
+    <button class="btn small" id="recB_top">莊</button>
+    <button class="btn small" id="recP_top">閒</button>
+    <button class="btn small" id="recT_top">和</button>
+    <button class="btn small danger" id="recClear_top">清空</button>
   </div>
 
   <div class="grid2">
@@ -241,7 +292,7 @@
 
       <div class="ev">
         <div class="rowline">
-          <div style="font-weight:1100;">下注建議（實戰派）</div>
+          <div style="font-weight:1100;">下注策略（實戰）</div>
           <div class="rowline" style="gap:8px;">
             <span class="muted">莊抽水</span>
             <select id="commission">
@@ -257,7 +308,7 @@
           <span class="muted">策略</span>
           <select id="strategy">
             <option value="evmax" selected>EV 最大（永遠下注）</option>
-            <option value="negok">容忍負EV也下注（更激進）</option>
+            <option value="negok">容忍負EV也下注</option>
             <option value="follow">追路（連莊/連閒就跟）</option>
             <option value="fade">反向（連莊/連閒就反買）</option>
             <option value="martingale">馬丁倍壓（輸就倍壓，上限封頂）</option>
@@ -265,13 +316,12 @@
 
           <span class="muted">負EV容忍</span>
           <input id="negTol" type="number" step="0.001" value="-0.010" style="width:110px;">
-          <span class="muted mono">(例 -0.010)</span>
         </div>
 
         <div class="rowline" style="gap:8px;margin-top:8px;">
           <span class="muted">追路/反向 需要連續</span>
           <input id="streakN" type="number" min="2" step="1" value="2" style="width:80px;">
-          <span class="muted">次才觸發</span>
+          <span class="muted">次</span>
 
           <span class="muted">馬丁上限</span>
           <input id="martCap" type="number" min="2" step="1" value="8" style="width:80px;">
@@ -280,7 +330,7 @@
 
         <div class="hr"></div>
 
-        <!-- 實戰派：牌路修正 -->
+        <!-- ✅ 實戰派：牌路修正 -->
         <div class="rowline">
           <div style="font-weight:1100;">實戰派：牌路修正（可調）</div>
           <div class="miniRow">
@@ -315,56 +365,34 @@
           </div>
         </div>
 
-        <div class="hint">
-          你用下面「記錄上一局結果」去餵牌路（莊/閒/和）。<br>
-          若你只想看純扣牌 MC，就把「啟用修正」關掉。
-        </div>
-
         <div class="hr"></div>
 
         <div class="mono" id="evLine">—</div>
-        <div class="mono" id="betLine" style="margin-top:6px;">—</div>
+
+        <!-- ✅ 你要的：不要顯示「建議/單位」→ 只顯示 莊/閒/和 -->
+        <div class="mono" id="betLine" style="margin-top:6px;font-size:34px;font-weight:1100;letter-spacing:2px;">—</div>
+
+        <div class="hint">
+          說明：你按上面固定的「莊/閒/和」是在記錄上局結果（會影響牌路/追路/倍壓/回測）。
+        </div>
       </div>
 
       <div class="hr"></div>
 
-      <!-- 上局 + 回測 -->
       <div class="rowline" style="justify-content:space-between; gap:10px;">
         <div>
           <div class="muted">上局勝家</div>
           <div class="mono" id="lastWinner">—</div>
           <div class="muted mono" id="lastStreak">—</div>
         </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="rowline" style="justify-content:flex-start; gap:10px; align-items:center;">
-        <div>
-          <div class="muted">近 N 把實際命中率回測</div>
-          <div class="muted" style="font-size:12px; opacity:.9;">依「你當時畫面建議」vs「你點的結果」計算（回測只統計莊/閒；和局視為 Push）</div>
+        <div style="text-align:right;">
+          <div class="muted">近 N 把命中率回測</div>
+          <div class="rowline" style="gap:8px; justify-content:flex-end;">
+            <span class="muted">N</span>
+            <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
+          </div>
+          <div class="mono" id="backLine" style="margin-top:6px;">—</div>
         </div>
-
-        <div class="rowline" style="gap:8px; justify-content:flex-start;">
-          <span class="muted">N</span>
-          <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
-        </div>
-      </div>
-
-      <div class="mono" id="backLine" style="margin-top:8px;">—</div>
-
-      <div class="hr"></div>
-
-      <div class="rowline" style="justify-content:flex-start; gap:8px;">
-        <span class="muted">點一下就記錄（會影響牌路/追路/倍壓）</span>
-        <button class="btn small" id="recB">莊</button>
-        <button class="btn small" id="recP">閒</button>
-        <button class="btn small" id="recT">和</button>
-        <button class="btn small danger" id="recClear">清空</button>
-      </div>
-
-      <div class="hint">
-        ⚠️ 本工具僅供統計/娛樂用途；下注有風險，請自控。
       </div>
 
       <div class="hr"></div>
@@ -375,38 +403,31 @@
 </div>
 
 <script>
-//===========================
-// ====== 狀態 ======
+/* ===========================
+   狀態
+=========================== */
 const betState = {
-  history: [],        // 'B'|'P'|'T'（實際結果）
-  lastPick: null,     // 上次建議下注的方向 'B'|'P'|'T'
-  unit: 1,            // 馬丁單位
-  logs: []            // 回測：每把 {pick, result, unit}
+  history: [],         // 'B'|'P'|'T'
+  lastPick: null,      // 'B'|'P'|'T'
+  unit: 1,             // 馬丁單位
+  logs: []             // 回測：每把 {pick,result,unit}
 };
 
-// 記住「上次計算出的勝率」（按上局結果後可即時更新建議）
-let lastCalc = {
-  has: false,
-  pP: 0, pB: 0, pT: 0,      // 原始MC
-  aP: 0, aB: 0, aT: 0       // 修正後（實戰用）
-};
+// ✅ 記住上次計算（不用重跑MC就能更新建議/回測）
+let lastCalc = { has:false, pP:0,pB:0,pT:0, aP:0,aB:0,aT:0 };
 
+/* ===========================
+   基本工具
+=========================== */
 function setText(id, txt){
   const el = document.getElementById(id);
   if (el) el.textContent = txt;
 }
-
-function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
 function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
 
-function sideName(s){
-  return s==='B' ? '莊' : s==='P' ? '閒' : s==='T' ? '和' : '—';
-}
-function opposite(side){
-  if (side === 'B') return 'P';
-  if (side === 'P') return 'B';
-  return 'T';
-}
+function sideName(s){ return s==='B' ? '莊' : s==='P' ? '閒' : s==='T' ? '和' : '—'; }
+function opposite(side){ return side === 'B' ? 'P' : side === 'P' ? 'B' : 'T'; }
 
 function lastNonTieStreak(hist){
   let i = hist.length - 1;
@@ -429,15 +450,12 @@ function calcEV(pP, pB, pT, commission){
   return {evP, evB, evT};
 }
 
-//===========================
-// ====== 實戰派：牌路修正（權重模型）=====
+/* ===========================
+   實戰派：牌路修正
+=========================== */
 function getRoadParams(){
   const on = !!document.getElementById('roadOn')?.checked;
-  let win = parseInt(document.getElementById('roadWin')?.value,10) || 18;
-  win = Math.max(6, Math.min(60, win));
-  if (document.getElementById('roadWin')) document.getElementById('roadWin').value = win;
-
-  // range 0..30 → 0..0.030
+  const win = Math.max(6, Math.min(60, parseInt(document.getElementById('roadWin')?.value,10) || 18));
   const wTrend = (parseInt(document.getElementById('wTrend')?.value,10) || 0) / 1000;
   const wChop  = (parseInt(document.getElementById('wChop')?.value,10) || 0) / 1000;
   const wTie   = (parseInt(document.getElementById('wTie')?.value,10) || 0) / 1000;
@@ -456,7 +474,6 @@ function roadFeatures(hist, win){
   const nonTie = recent.filter(x=>x!=='T');
   const last = nonTie.length ? nonTie[nonTie.length-1] : null;
 
-  // streak
   let streakSide = null, streakLen = 0;
   if (nonTie.length){
     streakSide = nonTie[nonTie.length-1];
@@ -466,15 +483,12 @@ function roadFeatures(hist, win){
     }
   }
 
-  // chop rate（交替率）
   let switches=0, pairs=0;
   for (let i=1;i<nonTie.length;i++){
     pairs++;
     if (nonTie[i] !== nonTie[i-1]) switches++;
   }
   const chopRate = pairs ? switches/pairs : 0;
-
-  // tie rate
   const tieRate = recent.length ? recent.filter(x=>x==='T').length / recent.length : 0;
 
   return {recent, nonTie, last, streakSide, streakLen, chopRate, tieRate};
@@ -490,26 +504,26 @@ function applyRoadAdjust(pP, pB, pT, hist){
   let dB = 0, dP = 0, dT = 0;
   let notes = [];
 
-  // 1) 順勢：連莊/連閒越長，小幅推同邊
+  // 1) 順勢
   if (f.streakSide && f.streakLen >= 2){
-    const k = clamp((f.streakLen - 1) / 6, 0, 1); // 2~7手逐步飽和
+    const k = clamp((f.streakLen - 1) / 6, 0, 1);
     const push = p.wTrend * k;
     if (f.streakSide === 'B'){ dB += push; dP -= push; notes.push(`順勢+${push.toFixed(3)}(莊連${f.streakLen})`); }
     if (f.streakSide === 'P'){ dP += push; dB -= push; notes.push(`順勢+${push.toFixed(3)}(閒連${f.streakLen})`); }
   }
 
-  // 2) 跳：若 chopRate 高（常換邊），推「反向」一點點
+  // 2) 跳路（偏反買）
   if (f.last && f.nonTie.length >= 6){
     const k = clamp((f.chopRate - 0.55) / 0.35, 0, 1);
     const push = p.wChop * k;
     if (push > 0){
       const opp = opposite(f.last);
-      if (opp === 'B'){ dB += push; dP -= push; notes.push(`跳路+${push.toFixed(3)}(偏反買)`); }
-      if (opp === 'P'){ dP += push; dB -= push; notes.push(`跳路+${push.toFixed(3)}(偏反買)`); }
+      if (opp === 'B'){ dB += push; dP -= push; notes.push(`跳路+${push.toFixed(3)}`); }
+      if (opp === 'P'){ dP += push; dB -= push; notes.push(`跳路+${push.toFixed(3)}`); }
     }
   }
 
-  // 3) 和局偏高：最近 tieRate 高於 baseTie → 小幅推和
+  // 3) 和局偏高
   if (f.recent.length >= 10){
     const k = clamp((f.tieRate - baseTie) / 0.08, 0, 1);
     const push = p.wTie * k;
@@ -521,12 +535,10 @@ function applyRoadAdjust(pP, pB, pT, hist){
     }
   }
 
-  // 套用
   let aB = pB + dB;
   let aP = pP + dP;
   let aT = pT + dT;
 
-  // 防爆：下限 + 正規化
   aB = clamp(aB, 0.001, 0.999);
   aP = clamp(aP, 0.001, 0.999);
   aT = clamp(aT, 0.001, 0.999);
@@ -534,92 +546,66 @@ function applyRoadAdjust(pP, pB, pT, hist){
   const s = aB + aP + aT;
   aB /= s; aP /= s; aT /= s;
 
-  const note = notes.length ? notes.join('｜') : '無顯著牌路訊號';
-  return {pP:aP, pB:aB, pT:aT, note};
+  return {pP:aP, pB:aB, pT:aT, note: notes.length ? notes.join('｜') : '無顯著牌路訊號'};
 }
 
-//===========================
-// ====== 下注策略 ======
+/* ===========================
+   策略 & 顯示（只顯示莊/閒/和）
+=========================== */
 function pickByStrategy(pP, pB, pT){
-  const commission = parseFloat(document.getElementById('commission').value || '0.05');
-  const strategy = document.getElementById('strategy').value;
-  const negTol = parseFloat(document.getElementById('negTol').value || '-0.010');
-  const streakN = Math.max(2, parseInt(document.getElementById('streakN').value,10) || 2);
+  const commission = parseFloat(document.getElementById('commission')?.value || '0.05');
+  const strategy = document.getElementById('strategy')?.value || 'evmax';
+  const negTol = parseFloat(document.getElementById('negTol')?.value || '-0.010');
+  const streakN = Math.max(2, parseInt(document.getElementById('streakN')?.value,10) || 2);
 
   const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
-
   const evList = [
     {side:'P', ev:evP},
     {side:'B', ev:evB},
     {side:'T', ev:evT},
   ].sort((a,b)=>b.ev-a.ev);
   const best = evList[0];
-
   const streak = lastNonTieStreak(betState.history);
 
   let pick = best.side;
-  let reason = `EV最大`;
+  let reason = 'EV最大';
 
   if (strategy === 'negok'){
     pick = best.side;
-    reason = `容忍負EV（門檻 ${negTol}）`;
+    reason = `容忍負EV(${negTol})`;
   }
-
   if (strategy === 'follow'){
-    if (streak.side && streak.len >= streakN){
-      pick = streak.side;
-      reason = `追路：${sideName(streak.side)}連 ${streak.len}（≥${streakN}）`;
-    } else {
-      pick = best.side;
-      reason = `追路未觸發 → EV最大`;
-    }
+    pick = (streak.side && streak.len >= streakN) ? streak.side : best.side;
+    reason = '追路';
   }
-
   if (strategy === 'fade'){
-    if (streak.side && streak.len >= streakN){
-      pick = opposite(streak.side);
-      reason = `反向：${sideName(streak.side)}連 ${streak.len}（≥${streakN}）`;
-    } else {
-      pick = best.side;
-      reason = `反向未觸發 → EV最大`;
-    }
+    pick = (streak.side && streak.len >= streakN) ? opposite(streak.side) : best.side;
+    reason = '反向';
   }
-
   if (strategy === 'martingale'){
     pick = best.side;
-    reason = `馬丁：方向=EV最大，單位看輸贏`;
+    reason = '馬丁';
   }
 
-  return {pick, best, evP, evB, evT, negTol, strategy, reason};
+  setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜${reason}`);
+  return {pick, best, strategy, negTol};
 }
 
 function updateBetUI(pP, pB, pT){
-  const martCap = Math.max(2, parseInt(document.getElementById('martCap').value,10) || 8);
   const out = pickByStrategy(pP, pB, pT);
-  let unit = betState.unit;
 
-  // 更新 topbar：顯示「建議」
-  setText('scoreP', `建議：${sideName(out.pick)}`);
-  setText('scoreB', `單位：${unit}`);
+  // ✅ 你要的：只顯示 莊/閒/和（不顯示 建議/單位）
+  setText('betLine', `${sideName(out.pick)}`);
 
-  if (out.strategy === 'negok'){
-    if (out.best.ev < out.negTol){
-      setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜⚠️ EV=${out.best.ev.toFixed(5)} < ${out.negTol}（仍照押）｜${out.reason}`);
-    } else {
-      setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜EV=${out.best.ev.toFixed(5)} ≥ ${out.negTol}｜${out.reason}`);
-    }
-  } else if (out.strategy === 'martingale'){
-    unit = Math.min(unit, martCap);
-    setText('betLine', `建議：${sideName(out.pick)}｜馬丁單位：${unit}/${martCap}｜（輸→倍壓；贏→回 1）｜${out.reason}`);
-  } else {
-    setText('betLine', `建議：${sideName(out.pick)}｜單位：${unit}｜${out.reason}`);
-  }
+  // ✅ 上面固定顯示（中間大字）
+  setText('scoreOnly', `${sideName(out.pick)}`);
 
   betState.lastPick = out.pick;
 }
 
-//===========================
-// ====== 上局顯示 + 回測 ======
+/* ===========================
+   上局勝家 & 回測
+=========================== */
 function updateLastWinnerUI(){
   if (!betState.history.length){
     setText('lastWinner', '—');
@@ -630,11 +616,8 @@ function updateLastWinnerUI(){
   setText('lastWinner', `上局：${sideName(last)}`);
 
   const streak = lastNonTieStreak(betState.history);
-  if (streak.side){
-    setText('lastStreak', `目前：${sideName(streak.side)} 連 ${streak.len}`);
-  } else {
-    setText('lastStreak', `目前：—`);
-  }
+  if (streak.side) setText('lastStreak', `目前：${sideName(streak.side)} 連 ${streak.len}`);
+  else setText('lastStreak', `目前：—`);
 }
 
 function calcBacktest(N){
@@ -643,7 +626,6 @@ function calcBacktest(N){
     setText('backLine', '—');
     return;
   }
-
   const n = Math.max(5, Math.min(500, parseInt(N,10) || 30));
   const last = logs.slice(-n);
 
@@ -652,49 +634,39 @@ function calcBacktest(N){
 
   for (const x of last){
     if (!x.pick){ skip++; continue; }
-    if (x.pick === 'T'){ skip++; continue; } // 回測只算莊/閒
+    if (x.pick === 'T'){ skip++; continue; }
+
     if (x.result === 'T'){ push++; continue; }
 
     if (x.result === x.pick){
-      win++;
-      netUnits += (x.unit || 1);
+      win++; netUnits += (x.unit || 1);
     } else {
-      loss++;
-      netUnits -= (x.unit || 1);
+      loss++; netUnits -= (x.unit || 1);
     }
   }
 
   const denom = win + loss;
   const hit = denom ? (win/denom) : 0;
 
-  setText(
-    'backLine',
+  setText('backLine',
     `回測近 ${last.length} 把：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜略過 ${skip}｜命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits}`
   );
 }
 
 function recordResult(r){
-  // 這把「下注時」的單位要先記住（避免馬丁先更新把 log 記錯）
-  const betUnit = betState.unit || 1;
-
-  // ① 記錄實際結果（牌路）
+  // ① 牌路記錄
   betState.history.push(r);
   updateLastWinnerUI();
 
-  // ② 回測 log（用當時的建議方向 & 當時的下注單位）
-  betState.logs.push({
-    pick: betState.lastPick,
-    result: r,
-    unit: betUnit
-  });
-
-  // ③ 馬丁更新（影響下一把單位）
+  // ② 馬丁（用「上一把建議方向」判輸贏）
   const martCap = Math.max(2, parseInt(document.getElementById('martCap')?.value,10) || 8);
-  const strategy = document.getElementById('strategy')?.value;
+  const strategy = document.getElementById('strategy')?.value || 'evmax';
+
+  let usedUnit = betState.unit || 1; // 先記錄這把「下注單位」給回測用
 
   if (strategy === 'martingale' && betState.lastPick){
     if (r === 'T'){
-      // 和：push，不變
+      // push，不變
     } else if (r === betState.lastPick){
       betState.unit = 1;
     } else {
@@ -702,9 +674,14 @@ function recordResult(r){
     }
   }
 
-  // ④ 若已有算過機率 → 立即用「修正後機率」更新建議（不用重跑MC）
+  // ③ 回測 log（一定要在這裡）
+  betState.logs.push({ pick: betState.lastPick, result: r, unit: usedUnit });
+
+  // ④ 若已算過 → 直接更新建議（不用重跑）
   if (lastCalc.has){
-    updateBetUI(lastCalc.aP, lastCalc.aB, lastCalc.aT);
+    const adj = applyRoadAdjust(lastCalc.pP, lastCalc.pB, lastCalc.pT, betState.history);
+    lastCalc.aP = adj.pP; lastCalc.aB = adj.pB; lastCalc.aT = adj.pT;
+    updateBetUI(adj.pP, adj.pB, adj.pT);
   }
 
   // ⑤ 更新回測顯示
@@ -712,8 +689,9 @@ function recordResult(r){
   calcBacktest(N);
 }
 
-//===========================
-// ====== 扣牌 + MC 主體 ======
+/* ===========================
+   扣牌 & MC
+=========================== */
 const DECKS = 8;
 const counts0 = () => {
   const c = new Array(10).fill(0);
@@ -722,11 +700,7 @@ const counts0 = () => {
   return c;
 };
 
-const state = {
-  shoe: counts0(),
-  seen: [],
-  inited: false,
-};
+const state = { shoe: counts0(), seen: [], inited: false };
 
 const rankToValue = (r) => {
   if (r === 'A') return 1;
@@ -750,10 +724,7 @@ function drawCard(counts){
   let r = Math.floor(Math.random() * total);
   for (let v=0; v<=9; v++){
     const k = counts[v];
-    if (r < k){
-      counts[v]--;
-      return v;
-    }
+    if (r < k){ counts[v]--; return v; }
     r -= k;
   }
   return null;
@@ -791,17 +762,12 @@ function resolveHand(counts){
     }
   } else {
     const pt = p3;
-    if (bTotal <= 2){
-      b3 = drawCard(counts);
-    } else if (bTotal === 3){
-      if (pt !== 8) b3 = drawCard(counts);
-    } else if (bTotal === 4){
-      if (pt >= 2 && pt <= 7) b3 = drawCard(counts);
-    } else if (bTotal === 5){
-      if (pt >= 4 && pt <= 7) b3 = drawCard(counts);
-    } else if (bTotal === 6){
-      if (pt === 6 || pt === 7) b3 = drawCard(counts);
-    }
+    if (bTotal <= 2) b3 = drawCard(counts);
+    else if (bTotal === 3){ if (pt !== 8) b3 = drawCard(counts); }
+    else if (bTotal === 4){ if (pt >= 2 && pt <= 7) b3 = drawCard(counts); }
+    else if (bTotal === 5){ if (pt >= 4 && pt <= 7) b3 = drawCard(counts); }
+    else if (bTotal === 6){ if (pt === 6 || pt === 7) b3 = drawCard(counts); }
+
     if (b3 !== null){
       bTotal = mod10(bTotal + b3);
     }
@@ -880,7 +846,7 @@ async function runMC(){
   if (!state.inited) initNewShoe();
   updateRoadParamLabels();
 
-  const trials = Math.max(5000, Math.min(500000, parseInt(document.getElementById('trials').value,10) || 50000));
+  const trials = Math.max(5000, Math.min(500000, parseInt(document.getElementById('trials')?.value,10) || 50000));
   document.getElementById('trials').value = trials;
 
   if (sumCounts(state.shoe) < 60){
@@ -906,54 +872,35 @@ async function runMC(){
   const pT = n ? (wT/n) : 0;
   const t1 = performance.now();
 
-  // 原始顯示
   setText('pP', fmtPct(pP)); setText('pB', fmtPct(pB)); setText('pT', fmtPct(pT));
   setText('pP2', `樣本 ${wP}/${n}`); setText('pB2', `樣本 ${wB}/${n}`); setText('pT2', `樣本 ${wT}/${n}`);
   setText('ms', (t1-t0).toFixed(0) + ' ms');
 
-  // 實戰派：牌路修正（用 betState.history）
+  // ✅ 修正後（實戰）
   const adj = applyRoadAdjust(pP, pB, pT, betState.history);
-
   setText('pP_adj', `修正後：${fmtPct(adj.pP)}`);
   setText('pB_adj', `修正後：${fmtPct(adj.pB)}`);
   setText('pT_adj', `修正後：${fmtPct(adj.pT)}`);
 
-  // EV 顯示：原始 vs 修正
-  const commission = parseFloat(document.getElementById('commission').value || '0.05');
-  const rawEV = calcEV(pP, pB, pT, commission);
-  const adjEV = calcEV(adj.pP, adj.pB, adj.pT, commission);
+  // ✅ 記住本次計算
+  lastCalc = { has:true, pP, pB, pT, aP:adj.pP, aB:adj.pB, aT:adj.pT };
 
-  setText(
-    'evLine',
-    `原始EV：閒=${rawEV.evP.toFixed(5)}｜莊=${rawEV.evB.toFixed(5)}｜和=${rawEV.evT.toFixed(5)}  ` +
-    `｜修正EV：閒=${adjEV.evP.toFixed(5)}｜莊=${adjEV.evB.toFixed(5)}｜和=${adjEV.evT.toFixed(5)}  ` +
-    `｜牌路：${adj.note}`
-  );
-
-  // 下注建議/策略：用修正後勝率（實戰派）
+  // ✅ 更新下注顯示（只顯示莊/閒/和）
   updateBetUI(adj.pP, adj.pB, adj.pT);
 
-  // 記住上次計算：給 recordResult 直接刷新
-  lastCalc = {
-    has: true,
-    pP, pB, pT,
-    aP: adj.pP,
-    aB: adj.pB,
-    aT: adj.pT
-  };
-
-  // 算完就刷新回測顯示（讓畫面更像實戰）
+  // ✅ 更新回測顯示
   const N = document.getElementById('backN')?.value || 30;
   calcBacktest(N);
 
-  // 這次輸入牌清掉，但扣牌保留
+  // 清掉本次輸入（扣牌保留）
   clearSeenUIOnly();
 
   if (bad>0) console.log('bad trials:', bad);
 }
 
-//===========================
-// ====== 事件綁定 ======
+/* ===========================
+   綁定事件
+=========================== */
 function on(id, ev, fn){
   const el = document.getElementById(id);
   if (el) el.addEventListener(ev, fn);
@@ -961,6 +908,7 @@ function on(id, ev, fn){
 
 window.addEventListener('DOMContentLoaded', () => {
   updateRoadParamLabels();
+  setText('scoreOnly','—');
 
   // 牌按鈕：事件委派（最穩）
   const pad = document.querySelector('.pad');
@@ -977,40 +925,34 @@ window.addEventListener('DOMContentLoaded', () => {
   on('btnNewShoe', 'click', initNewShoe);
   on('btnCalc', 'click', runMC);
 
-  // 記錄結果
-  on('recB', 'click', ()=> recordResult('B'));
-  on('recP', 'click', ()=> recordResult('P'));
-  on('recT', 'click', ()=> recordResult('T'));
-
-  on('recClear','click', ()=>{
+  // 固定上面：莊閒和按鈕
+  on('recB_top','click', ()=> recordResult('B'));
+  on('recP_top','click', ()=> recordResult('P'));
+  on('recT_top','click', ()=> recordResult('T'));
+  on('recClear_top','click', ()=>{
     betState.history = [];
     betState.logs = [];
     betState.unit = 1;
     betState.lastPick = null;
-    lastCalc.has = false;
+    lastCalc = {has:false,pP:0,pB:0,pT:0,aP:0,aB:0,aT:0};
 
-    setText('betLine', '—');
-    setText('evLine', '—');
-    setText('backLine', '—');
-    setText('lastWinner', '—');
-    setText('lastStreak', '—');
-
-    setText('pP_adj', '修正後：—');
-    setText('pB_adj', '修正後：—');
-    setText('pT_adj', '修正後：—');
-
-    setText('scoreP', '建議：—');
-    setText('scoreB', '');
+    setText('betLine','—');
+    setText('scoreOnly','—');
+    setText('lastWinner','—');
+    setText('lastStreak','—');
+    setText('backLine','—');
+    setText('pP_adj','修正後：—');
+    setText('pB_adj','修正後：—');
+    setText('pT_adj','修正後：—');
   });
 
-  // 參數改動 → 只更新標籤數字，不自動跑 MC（避免手機卡）
-  ['roadOn','roadWin','wTrend','wChop','wTie','backN'].forEach(id=>{
+  // 參數改動：只更新顯示值，不自動跑 MC
+  ['roadOn','roadWin','wTrend','wChop','wTie'].forEach(id=>{
     on(id, 'input', updateRoadParamLabels);
     on(id, 'change', updateRoadParamLabels);
   });
 
   initNewShoe();
-  updateLastWinnerUI();
 });
 </script>
 </body>
