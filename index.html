@@ -127,7 +127,30 @@
       border-radius:16px;
       backdrop-filter: blur(8px);
     }
+/* ✅ 建議下注：往下滑也固定顯示在最上方 */
+.stickyPick{
+  position: sticky;
+  top: 8px;
+  z-index: 120;             /* 要比 quickRec 高 */
+  margin: 10px 0 6px;
+  border: 1px solid #ffffff20;
+  background: #00000055;
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
 
+/* 讓上面 PASS/莊/閒更醒目、不要被擠 */
+.stickyPick #scoreOnly{
+  font-size: 44px;
+}
+
+.stickyPick .scoreHint{
+  position: static;
+  transform: none;
+  margin-top: 4px;
+  opacity: .85;
+}
     .handBox{
       border:1px solid #ffffff20;
       background:#0000001a;
@@ -199,10 +222,22 @@
 <body>
 <div class="app">
 
+<div class="stickyPick">
   <div class="topbar">
     <div class="side player">
       <div class="label"><div class="zh">閒</div><div class="en">PLAYER</div></div>
     </div>
+
+    <div class="score" aria-label="Pick">
+      <div id="scoreOnly">—</div>
+      <div class="scoreHint">下一把推薦</div>
+    </div>
+
+    <div class="side banker">
+      <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
+    </div>
+  </div>
+</div>
 
     <div class="score" aria-label="Pick">
       <div id="scoreOnly">—</div>
