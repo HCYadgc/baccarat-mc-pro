@@ -22,6 +22,9 @@
       /* ✅ 這兩個會由 JS 自動更新，避免 sticky 重疊 */
       --stickyPickH: 92px;
       --gapTop: 8px;
+
+      --red:#ff6b6b;
+      --blue:#79b7ff;
     }
     *{box-sizing:border-box;}
     body{
@@ -70,7 +73,7 @@
       min-width:180px; position:relative;
     }
     #scoreOnly{
-      font-size:44px; /* ✅ sticky 上方顯示更舒服 */
+      font-size:44px;
       font-weight:1100;
       text-shadow:0 3px 0 rgba(0,0,0,.25);
       letter-spacing:2px;
@@ -134,7 +137,7 @@
       font-weight:900;
     }
 
-    /* ✅ quickRec 也固定，但會自動排在 stickyPick 下方（不重疊） */
+    /* ✅ quickRec 固定在 stickyPick 下方（不重疊） */
     .quickRec{
       position: sticky;
       top: calc(var(--gapTop) + var(--stickyPickH) + 8px);
@@ -216,6 +219,50 @@
       display:none;
     }
     .alert strong{font-weight:1100;}
+
+    /* ✅ 輕量路顯示（在策略區下面） */
+    .roadsLite{
+      margin-top:10px;
+      border:1px solid #ffffff20;
+      background:#0000001a;
+      border-radius:16px;
+      padding:10px;
+    }
+    .roadsHead{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    .roadsTitle{font-weight:1100;}
+    .roadsGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width: 520px){
+      .roadsGrid{grid-template-columns:1fr;}
+    }
+    .roadCard{
+      border:1px solid #ffffff18;
+      background:#00000022;
+      border-radius:14px;
+      padding:10px;
+    }
+    .roadCard .k{color:var(--muted); font-size:13px; margin-bottom:4px;}
+    .roadCard .v{font-size:18px; font-weight:1100;}
+    .tagR{color:var(--red);}
+    .tagB{color:var(--blue);}
+    .trail{
+      margin-top:8px;
+      display:flex; gap:6px; flex-wrap:wrap;
+    }
+    .dot{
+      width:12px; height:12px; border-radius:999px;
+      border:1px solid #ffffff22;
+      background:#ffffff12;
+    }
+    .dot.B{background:var(--red);}
+    .dot.P{background:var(--blue);}
+    .dot.T{background:#3bd66b;}
   </style>
 </head>
 
@@ -273,7 +320,6 @@
           計算下一局機率（自動判定勝負＋扣牌）
         </button>
 
-        <!-- ✅ 已刪除連續輸入：只保留手動切換 -->
         <div class="miniRow" style="margin-top:10px;">
           <div class="chip">目前輸入：<span class="mono" id="activeSide">閒</span></div>
           <button class="btn small P" id="btnPickP">切到閒</button>
@@ -295,12 +341,30 @@
 
       <div class="hr"></div>
 
+      <!-- ✅ 近N回測移到「鞋狀態」上面 -->
+      <div class="rowline" style="justify-content:space-between; gap:10px;">
+        <div style="min-width:0;">
+          <div class="muted">近 N 把命中率回測（只算有下注）</div>
+          <div class="rowline" style="gap:8px; justify-content:flex-start;">
+            <span class="muted">N</span>
+            <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
+          </div>
+          <div class="mono" id="backLine" style="margin-top:6px;">—</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
       <div class="rowline">
         <div>
           <div class="muted">鞋狀態</div>
           <div id="shoeInfo" class="mono">—</div>
           <div class="muted" style="margin-top:6px;">上局判定</div>
           <div id="roundResult" class="mono">—</div>
+
+          <div class="muted" style="margin-top:10px;">上局勝家</div>
+          <div class="mono" id="lastWinner">—</div>
+          <div class="muted mono" id="lastStreak">—</div>
         </div>
         <div>
           <div class="muted">蒙地卡羅次數</div>
@@ -397,23 +461,35 @@
         <div class="hint">
           門檻數字越小 → 越不會 PASS；越大 → 越挑、出手越少。
         </div>
-      </div>
 
-      <div class="hr"></div>
-
-      <div class="rowline" style="justify-content:space-between; gap:10px;">
-        <div>
-          <div class="muted">上局勝家</div>
-          <div class="mono" id="lastWinner">—</div>
-          <div class="muted mono" id="lastStreak">—</div>
-        </div>
-        <div style="text-align:right;">
-          <div class="muted">近 N 把命中率回測（只算有下注）</div>
-          <div class="rowline" style="gap:8px; justify-content:flex-end;">
-            <span class="muted">N</span>
-            <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
+        <!-- ✅ 輕量路：放「策略區塊下面」(你選 2) -->
+        <div class="roadsLite" id="roadsLite">
+          <div class="roadsHead">
+            <div class="roadsTitle">路紙（輕量）</div>
+            <div class="muted mono" id="roadsCount">—</div>
           </div>
-          <div class="mono" id="backLine" style="margin-top:6px;">—</div>
+
+          <div class="roadsGrid">
+            <div class="roadCard">
+              <div class="k">大路（最新）</div>
+              <div class="v mono" id="roadBig">—</div>
+            </div>
+            <div class="roadCard">
+              <div class="k">大眼仔（最新）</div>
+              <div class="v mono" id="roadEye">—</div>
+            </div>
+            <div class="roadCard">
+              <div class="k">小路（最新）</div>
+              <div class="v mono" id="roadSmall">—</div>
+            </div>
+            <div class="roadCard">
+              <div class="k">蟑螂（最新）</div>
+              <div class="v mono" id="roadCock">—</div>
+            </div>
+          </div>
+
+          <div class="k muted" style="margin-top:10px;">最近 24 把（含和）</div>
+          <div class="trail" id="trailDots"></div>
         </div>
       </div>
 
@@ -461,10 +537,10 @@ function removeCard(v){ if (!canRemove(v)) return false; shoe.counts[v]--; retur
 function addCard(v){ if (Number.isInteger(v) && v>=0 && v<=9) shoe.counts[v]++; }
 
 const betState = {
-  history: [],
-  lastPick: null,
+  history: [],        // 'B'|'P'|'T'  (全部結果)
+  lastPick: null,     // 真正下注方向：'B'|'P' 或 null(PASS)
   unit: 1,
-  logs: []
+  logs: []            // 只存有下注：{pick,result,unit}
 };
 let lastCalc = { has:false, pP:0,pB:0,pT:0 };
 
@@ -478,6 +554,9 @@ function sideName(s){
 }
 function mod10(x){ return ((x%10)+10)%10; }
 
+/* ===========================
+   本局輸入：閒/莊
+=========================== */
 let active = 'P';
 let inP = '';
 let inB = '';
@@ -539,6 +618,9 @@ function decideWinner(pCards, bCards){
   return {res:'T', pT, bT};
 }
 
+/* ===========================
+   EV / 推薦 / PASS
+=========================== */
 function calcEV(pP, pB, pT, commission){
   const evP = 2*pP - 1;
   const evB = pB*(1-commission) - (1-pB);
@@ -651,6 +733,9 @@ function updateBetUI(pP, pB, pT){
   updateRandomZoneAlert();
 }
 
+/* ===========================
+   回測（只算有下注）
+=========================== */
 function calcBacktest(N){
   const logs = betState.logs || [];
   if (!logs.length){
@@ -693,7 +778,164 @@ function updateLastWinnerUI(){
   else setText('lastStreak', `目前：—`);
 }
 
-/* ===== MC ===== */
+/* ===========================
+   輕量路（大路 + 三路）
+   - 和局 T 不進路（符合一般路紙）
+=========================== */
+const roadState = {
+  big: [],       // list of cells: {side:'B'|'P', col,row}
+  occ: new Map() // key "c,r" -> true
+};
+
+function roadKey(c,r){ return `${c},${r}`; }
+
+function resetRoad(){
+  roadState.big = [];
+  roadState.occ = new Map();
+}
+
+function buildRoadFromHistory(){
+  resetRoad();
+  // 只用非和局
+  const seq = betState.history.filter(x => x==='B' || x==='P');
+  let lastSide = null;
+  let col = 0;
+  let row = 0;
+
+  for (const side of seq){
+    if (!lastSide){
+      col = 0; row = 0;
+    } else if (side === lastSide){
+      // 往下，若被占用或超過，則「貼邊」往右
+      const tryR = row + 1;
+      if (!roadState.occ.has(roadKey(col, tryR))){
+        row = tryR;
+      } else {
+        col = col + 1; // tail
+        // row 不變
+      }
+    } else {
+      // 換邊：新欄頂
+      col = col + 1;
+      row = 0;
+    }
+
+    roadState.big.push({side, col, row});
+    roadState.occ.set(roadKey(col,row), true);
+    lastSide = side;
+  }
+}
+
+function columnHeight(c){
+  // 回傳該欄最高 row+1
+  let h = 0;
+  for (const cell of roadState.big){
+    if (cell.col === c) h = Math.max(h, cell.row+1);
+  }
+  return h;
+}
+
+function existsCell(c,r){
+  return roadState.occ.has(roadKey(c,r));
+}
+
+// 三路顏色推導（常用版本）
+// row>0：看左邊 offset 欄同 row 是否存在：存在=紅，不存在=藍
+// row==0：比較左邊兩欄高度是否相等：相等=紅，不等=藍
+function deriveColor(cell, offset){
+  const c = cell.col;
+  const r = cell.row;
+  const leftA = c - offset;
+  const leftB = c - offset - 1;
+
+  if (leftA < 0) return null;
+
+  if (r > 0){
+    return existsCell(leftA, r) ? 'R' : 'B';
+  } else {
+    if (leftB < 0) return null;
+    const ha = columnHeight(leftA);
+    const hb = columnHeight(leftB);
+    return (ha === hb) ? 'R' : 'B';
+  }
+}
+
+function calcStreak(arr){
+  if (!arr.length) return {c:null, n:0};
+  const last = arr[arr.length-1];
+  let n = 1;
+  for (let i = arr.length-2; i>=0; i--){
+    if (arr[i] !== last) break;
+    n++;
+  }
+  return {c:last, n};
+}
+
+function updateRoadUI(){
+  // 先建大路
+  buildRoadFromHistory();
+
+  const nonTieCount = betState.history.filter(x=>x==='B'||x==='P').length;
+  setText('roadsCount', `非和局進路：${nonTieCount} 把`);
+
+  if (!roadState.big.length){
+    setText('roadBig', '—');
+    setText('roadEye', '—');
+    setText('roadSmall', '—');
+    setText('roadCock', '—');
+  } else {
+    const lastCell = roadState.big[roadState.big.length-1];
+
+    // 大路最新：莊/閒 + 位置
+    setText('roadBig', `${sideName(lastCell.side)}｜C${lastCell.col+1} R${lastCell.row+1}`);
+
+    // 三路序列（從符合條件才開始產生）
+    const eye = [];
+    const small = [];
+    const cock = [];
+
+    for (const cell of roadState.big){
+      const ce = deriveColor(cell, 1); if (ce) eye.push(ce);
+      const cs = deriveColor(cell, 2); if (cs) small.push(cs);
+      const cc = deriveColor(cell, 3); if (cc) cock.push(cc);
+    }
+
+    const e = calcStreak(eye);
+    const s = calcStreak(small);
+    const c = calcStreak(cock);
+
+    function fmtRB(x){
+      if (!x.c) return '—';
+      const cls = x.c==='R' ? 'tagR' : 'tagB';
+      const label = x.c==='R' ? '紅' : '藍';
+      return `<span class="${cls}">${label}連${x.n}</span>`;
+    }
+
+    // innerHTML 用在這裡（只輸出紅藍連x，安全）
+    const elEye = document.getElementById('roadEye');
+    const elSmall = document.getElementById('roadSmall');
+    const elCock = document.getElementById('roadCock');
+    if (elEye) elEye.innerHTML = fmtRB(e);
+    if (elSmall) elSmall.innerHTML = fmtRB(s);
+    if (elCock) elCock.innerHTML = fmtRB(c);
+  }
+
+  // 最近 24 把（含和）小圓點
+  const tail = betState.history.slice(-24);
+  const box = document.getElementById('trailDots');
+  if (box){
+    box.innerHTML = '';
+    for (const x of tail){
+      const d = document.createElement('div');
+      d.className = 'dot ' + x; // B/P/T
+      box.appendChild(d);
+    }
+  }
+}
+
+/* ===========================
+   蒙地卡羅
+=========================== */
 function drawCard(counts){
   const total = counts.reduce((a,b)=>a+b,0);
   if (total <= 0) return null;
@@ -790,9 +1032,12 @@ async function runMC(){
 
   updateBetUI(pP, pB, pT);
   calcBacktest(document.getElementById('backN')?.value || 30);
+  updateRoadUI();
 }
 
-/* ===== 你按計算 ===== */
+/* ===========================
+   你按計算
+=========================== */
 function applyRoundAndCalc(){
   const pCards = parseCards(inP);
   const bCards = parseCards(inB);
@@ -906,6 +1151,8 @@ function newShoe(){
   setText('pP2','—'); setText('pB2','—'); setText('pT2','—');
   setText('ms','—');
   document.getElementById('randAlert').style.display = 'none';
+
+  updateRoadUI();
 }
 
 function clearAll(){
@@ -923,6 +1170,8 @@ function clearAll(){
   setText('lastStreak','—');
   setText('backLine','—（目前沒有下注紀錄）');
   document.getElementById('randAlert').style.display = 'none';
+
+  updateRoadUI();
   runMC();
 }
 
@@ -962,6 +1211,7 @@ window.addEventListener('DOMContentLoaded', () => {
     on(id, 'change', ()=>{
       if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
       calcBacktest(document.getElementById('backN')?.value || 30);
+      updateRoadUI();
     });
     on(id, 'input', ()=>{
       if (id==='passThr' || id==='backN'){
