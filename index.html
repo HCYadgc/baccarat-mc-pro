@@ -761,11 +761,10 @@ function updateBetUI(pP, pB, pT){
     auto = autoSelectMode(pP, pB, pT);
 
     // AUTO 顯示提醒（亂數段或 PASS/切策略原因）
-    if (auto.mode === 'pass'){
-      setRandomAlert(true, auto.reason + '｜建議：停手/降注/等 edge 變大');
-    } else {
-      setRandomAlert(false, '');
-    }
+    if (AUTO.enabled && auto && auto.mode === 'pass'){
+  setRandomAlert(true, auto.reason + '｜（AUTO提醒：偏亂/edge小，但不強制PASS）');
+  // 不 return，繼續走下面 pickByStrategy()
+}
 
     // AUTO 會自動切換策略下拉選單（PASS 不用改）
     const sel = document.getElementById('strategy');
@@ -775,15 +774,7 @@ function updateBetUI(pP, pB, pT){
   }
 
   // 若 AUTO 要 PASS：直接 PASS（不下注）
-  if (AUTO.enabled && auto && auto.mode === 'pass'){
-    setText('betLine', 'PASS');
-    setText('scoreOnly', 'PASS');
-    betState.lastPick = null;
-    // evLine 末尾加原因
-    const cur = document.getElementById('evLine')?.textContent || '—';
-    setText('evLine', cur + `｜AUTO=${auto.reason}`);
-    return;
-  }
+  
 
   // 否則走原本推薦（裡面還會再套 PASSThr 判斷）
   const out = pickByStrategy(pP, pB, pT);
