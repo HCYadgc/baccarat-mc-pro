@@ -158,6 +158,17 @@
       border-radius:16px;
       backdrop-filter: blur(8px);
     }
+
+    /* ✅ 亂數區段提醒 */
+    .warnBox{
+      margin-top:10px;
+      border:1px solid #ffffff20;
+      background:#0000002b;
+      border-radius:14px;
+      padding:10px;
+      display:none;
+    }
+    .warnBox.show{display:block;}
   </style>
 </head>
 
@@ -310,6 +321,23 @@
 
         <div class="hr"></div>
 
+        <!-- ✅ 1) EV 門檻 PASS 模式 -->
+        <div class="rowline">
+          <div style="font-weight:1100;">EV 門檻 PASS 模式</div>
+          <div class="miniRow">
+            <label class="chip">
+              <input id="passOn" type="checkbox" checked>
+              啟用 PASS
+            </label>
+            <label class="chip">
+              門檻 <input id="passEV" type="number" step="0.001" value="0.002" style="width:90px;">
+              <span class="muted">（例 0.002）</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
         <div class="rowline">
           <div style="font-weight:1100;">實戰派：牌路修正（可調）</div>
           <div class="miniRow">
@@ -348,8 +376,14 @@
 
         <div class="mono" id="evLine">—</div>
 
-        <!-- ✅ 只顯示：莊/閒/和；若和最高 → 顯示 和/莊 或 和/閒 -->
+        <!-- ✅ 只顯示：莊/閒/和；若 PASS → 顯示 PASS -->
         <div class="mono" id="betLine" style="margin-top:6px;font-size:34px;font-weight:1100;letter-spacing:2px;">—</div>
+
+        <!-- ✅ 2) 亂數區段提醒 -->
+        <div class="warnBox" id="noiseBox">
+          <div style="font-weight:1100;">⚠️ 偵測到可能「亂數區段」</div>
+          <div class="muted" id="noiseWarn" style="margin-top:6px;">—</div>
+        </div>
 
         <div class="hint">上面固定的「莊/閒/和」用來記錄上局結果（影響牌路/追路/倍壓/回測）。</div>
       </div>
@@ -363,7 +397,7 @@
           <div class="muted mono" id="lastStreak">—</div>
         </div>
         <div style="text-align:right;">
-          <div class="muted">近 N 把命中率回測</div>
+          <div class="muted">近 N 把命中率回測（只算有下注）</div>
           <div class="rowline" style="gap:8px; justify-content:flex-end;">
             <span class="muted">N</span>
             <input id="backN" type="number" min="5" step="5" value="30" style="width:90px;">
@@ -384,10 +418,10 @@
    狀態
 =========================== */
 const betState = {
-  history: [],         // 'B'|'P'|'T'
-  lastPick: null,      // 真正下注方向：只會是 'B'|'P'（若推薦和，會落到莊/閒）
+  history: [],         // 'B'|'P'|'T'（上局結果）
+  lastPick: null,      // 真正下注方向：'B'|'P'；PASS 時為 null
   unit: 1,
-  logs: []             // 回測：每把 {pick,result,unit}
+  logs: []             // 回測：每把 {pick,result,unit,ts}
 };
 let lastCalc = { has:false, pP:0,pB:0,pT:0, aP:0,aB:0,aT:0 };
 
@@ -422,6 +456,15 @@ function calcEV(pP, pB, pT, commission){
   const evB = pB*(1-commission) - (1-pB);
   const evT = 9*pT - 1;
   return {evP, evB, evT};
+}
+
+/* ===========================
+   1) EV 門檻 PASS 模式
+=========================== */
+function getPassParams(){
+  const on = !!document.getElementById('passOn')?.checked;
+  const passEV = parseFloat(document.getElementById('passEV')?.value || '0.002');
+  return { on, passEV };
 }
 
 /* ===========================
@@ -513,18 +556,16 @@ function applyRoadAdjust(pP, pB, pT, hist){
 }
 
 /* ===========================
-   推薦（重點修正）
-   - pick 可能是 T
-   - bpPick 永遠是 B/P（和最高時也給一個下注方向）
+   推薦邏輯（含 PASS）
 =========================== */
 function pickByStrategy(pP, pB, pT){
   const commission = parseFloat(document.getElementById('commission')?.value || '0.05');
   const strategy = document.getElementById('strategy')?.value || 'evmax';
-  const negTol = parseFloat(document.getElementById('negTol')?.value || '-0.010');
   const streakN = Math.max(2, parseInt(document.getElementById('streakN')?.value,10) || 2);
 
   const {evP, evB, evT} = calcEV(pP, pB, pT, commission);
 
+  // 先照 EV 排（含和）
   const evList = [
     {side:'P', ev:evP},
     {side:'B', ev:evB},
@@ -540,36 +581,44 @@ function pickByStrategy(pP, pB, pT){
     if (streak.side && streak.len >= streakN) pick = streak.side;
   } else if (strategy === 'fade'){
     if (streak.side && streak.len >= streakN) pick = opposite(streak.side);
-  } else if (strategy === 'negok'){
-    // 仍採 best，但保留門檻資訊
-    pick = best.side;
-  } else if (strategy === 'martingale'){
-    pick = best.side;
   }
 
-  // ✅ 和最高時：仍要給莊/閒方向（用 EV 在 B/P 取高者）
+  // ✅ 和最高時：仍給一個下注方向（莊/閒取 EV 較高）
   const bpPick = (evB >= evP) ? 'B' : 'P';
 
-  setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}`);
-
-  return { pick, bpPick, best, strategy, negTol };
+  return { pick, bpPick, evP, evB, evT };
 }
 
 function updateBetUI(pP, pB, pT){
   const out = pickByStrategy(pP, pB, pT);
 
-  // ✅ 顯示：若推薦和 → 顯示 和/莊 或 和/閒
-  const show = (out.pick === 'T') ? `和/${sideName(out.bpPick)}` : sideName(out.pick);
+  // ✅ PASS 規則：只看「莊/閒」的 maxEV（因為你實戰主要下注 B/P）
+  const { on, passEV } = getPassParams();
+  const maxBP = Math.max(out.evB, out.evP);
+  const doPass = on && (maxBP < passEV);
+
+  // 顯示文字
+  let show = '';
+  if (doPass){
+    show = 'PASS';
+    betState.lastPick = null; // ✅ 不下注
+  } else {
+    show = (out.pick === 'T') ? `和/${sideName(out.bpPick)}` : sideName(out.pick);
+    betState.lastPick = (out.pick === 'T') ? out.bpPick : out.pick; // ✅ 真正下注方向只會是 B/P
+  }
+
+  // 顯示 EV line（也把 PASS 條件顯示出來，方便看）
+  setText('evLine',
+    `EV(閒)=${out.evP.toFixed(5)}｜EV(莊)=${out.evB.toFixed(5)}｜EV(和)=${out.evT.toFixed(5)}｜` +
+    `PASS門檻=${passEV}｜目前max(B/P)=${maxBP.toFixed(5)}`
+  );
 
   setText('betLine', show);
   setText('scoreOnly', show);
-
-  // ✅ 真正下注方向：若推薦和，回測/馬丁用 bpPick（B/P）
-  betState.lastPick = (out.pick === 'T') ? out.bpPick : out.pick;
 }
 
 /* ===========================
-   上局勝家 & 回測
+   上局勝家
 =========================== */
 function updateLastWinnerUI(){
   if (!betState.history.length){
@@ -585,56 +634,144 @@ function updateLastWinnerUI(){
   else setText('lastStreak', `目前：—`);
 }
 
+/* ===========================
+   3) 回測：只算有下注的把數
+   - N 是「近 N 把下注」
+   - PASS 不算
+=========================== */
 function calcBacktest(N){
   const logs = betState.logs || [];
-  if (!logs.length){
-    setText('backLine', '—');
+  const betLogs = logs.filter(x => x && (x.pick === 'B' || x.pick === 'P')); // ✅ 只算有下注
+
+  if (!betLogs.length){
+    setText('backLine', '—（目前沒有下注紀錄）');
     return;
   }
-  const n = Math.max(5, Math.min(500, parseInt(N,10) || 30));
-  const last = logs.slice(-n);
 
-  let win=0, loss=0, push=0, skip=0;
+  const n = Math.max(5, Math.min(500, parseInt(N,10) || 30));
+  const last = betLogs.slice(-n); // ✅ 近 N 把「下注」
+
+  let win=0, loss=0, push=0;
   let netUnits = 0;
 
   for (const x of last){
-    if (!x.pick){ skip++; continue; }
-    if (x.result === 'T'){ push++; continue; }
-
-    if (x.result === x.pick){ win++; netUnits += (x.unit || 1); }
-    else { loss++; netUnits -= (x.unit || 1); }
+    if (x.result === 'T'){
+      push++; // ✅ 有下注但開和：push
+      continue;
+    }
+    if (x.result === x.pick){
+      win++; netUnits += (x.unit || 1);
+    } else {
+      loss++; netUnits -= (x.unit || 1);
+    }
   }
 
-  const denom = win + loss;
+  const denom = win + loss; // ✅ 命中率只用「決勝負」的把數
   const hit = denom ? (win/denom) : 0;
 
   setText('backLine',
-    `回測近 ${last.length} 把：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜略過 ${skip}｜命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits}`
+    `回測近 ${last.length} 把(下注)：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜` +
+    `命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits}`
   );
+
+  // ✅ 2) 同步偵測亂數區段
+  detectNoiseSegment(last);
 }
 
+/* ===========================
+   2) 偵測「亂數區段」提醒停手
+   規則（只看近 M 把下注）：
+   - M >= 20 才判斷
+   - 命中率接近 50%（45%~55%）
+   - 淨單位接近 0（|net| <= 2）
+   - 結果跳路率高（非和結果 B/P 交替率高）
+=========================== */
+function detectNoiseSegment(lastBetLogs){
+  const box = document.getElementById('noiseBox');
+  const warn = document.getElementById('noiseWarn');
+  if (!box || !warn) return;
+
+  const M = lastBetLogs.length;
+  if (M < 20){
+    box.classList.remove('show');
+    return;
+  }
+
+  let win=0, loss=0, push=0, net=0;
+  const results = []; // 用來算跳路（只看 B/P 結果）
+  for (const x of lastBetLogs){
+    if (x.result === 'T'){ push++; continue; }
+    results.push(x.result);
+    if (x.result === x.pick){ win++; net += (x.unit||1); }
+    else { loss++; net -= (x.unit||1); }
+  }
+
+  const denom = win + loss;
+  const hit = denom ? win/denom : 0;
+
+  // 跳路率
+  let switches=0, pairs=0;
+  for (let i=1;i<results.length;i++){
+    pairs++;
+    if (results[i] !== results[i-1]) switches++;
+  }
+  const chopRate = pairs ? switches/pairs : 0;
+
+  const near50 = (hit >= 0.45 && hit <= 0.55);
+  const near0  = (Math.abs(net) <= 2);
+  const choppy = (chopRate >= 0.60);
+
+  if (near50 && near0 && choppy){
+    box.classList.add('show');
+    warn.textContent =
+      `近 ${M} 把(下注)：命中率 ${(hit*100).toFixed(1)}%｜淨單位 ${net>0?'+':''}${net}｜跳路率 ${(chopRate*100).toFixed(0)}% → 建議「停手/縮小單位/等訊號」`;
+  } else {
+    box.classList.remove('show');
+  }
+}
+
+/* ===========================
+   記錄上局結果（莊/閒/和）
+   - 如果 PASS：不寫入下注 log（或 pick=null），回測只算下注所以不影響
+=========================== */
 function recordResult(r){
+  // ① 記錄上局結果（牌路）
   betState.history.push(r);
   updateLastWinnerUI();
 
+  // ② 馬丁：只在「有下注」時才影響（PASS 不動）
   const martCap = Math.max(2, parseInt(document.getElementById('martCap')?.value,10) || 8);
   const strategy = document.getElementById('strategy')?.value || 'evmax';
 
   const usedUnit = betState.unit || 1;
+  const hasBet = (betState.lastPick === 'B' || betState.lastPick === 'P');
 
-  if (strategy === 'martingale' && betState.lastPick){
-    if (r === betState.lastPick) betState.unit = 1;
-    else if (r !== 'T') betState.unit = Math.min(betState.unit * 2, martCap);
+  if (hasBet && strategy === 'martingale'){
+    if (r === 'T'){
+      // push 不變
+    } else if (r === betState.lastPick){
+      betState.unit = 1;
+    } else {
+      betState.unit = Math.min(betState.unit * 2, martCap);
+    }
   }
 
-  betState.logs.push({ pick: betState.lastPick, result: r, unit: usedUnit });
+  // ③ 寫入 log（PASS 也記錄，但 pick=null；回測會自動忽略）
+  betState.logs.push({
+    pick: hasBet ? betState.lastPick : null,
+    result: r,
+    unit: hasBet ? usedUnit : 0,
+    ts: Date.now()
+  });
 
+  // ④ 若已算過 → 不重跑 MC，直接用同一套「原始機率 + 新牌路」更新
   if (lastCalc.has){
     const adj = applyRoadAdjust(lastCalc.pP, lastCalc.pB, lastCalc.pT, betState.history);
     lastCalc.aP = adj.pP; lastCalc.aB = adj.pB; lastCalc.aT = adj.pT;
     updateBetUI(adj.pP, adj.pB, adj.pT);
   }
 
+  // ⑤ 更新回測（只算下注）
   const N = document.getElementById('backN')?.value || 30;
   calcBacktest(N);
 }
@@ -853,6 +990,7 @@ window.addEventListener('DOMContentLoaded', () => {
   on('recB_top','click', ()=> recordResult('B'));
   on('recP_top','click', ()=> recordResult('P'));
   on('recT_top','click', ()=> recordResult('T'));
+
   on('recClear_top','click', ()=>{
     betState.history = [];
     betState.logs = [];
@@ -868,11 +1006,21 @@ window.addEventListener('DOMContentLoaded', () => {
     setText('pP_adj','修正後：—');
     setText('pB_adj','修正後：—');
     setText('pT_adj','修正後：—');
+
+    const box = document.getElementById('noiseBox');
+    if (box) box.classList.remove('show');
   });
 
-  ['roadOn','roadWin','wTrend','wChop','wTie'].forEach(id=>{
+  // 參數改動：只更新顯示值，不自動跑 MC
+  ['roadOn','roadWin','wTrend','wChop','wTie','passOn','passEV'].forEach(id=>{
     on(id, 'input', updateRoadParamLabels);
     on(id, 'change', updateRoadParamLabels);
+  });
+
+  // N 改變 → 立刻更新回測（只算下注）
+  on('backN','input', ()=>{
+    const N = document.getElementById('backN')?.value || 30;
+    calcBacktest(N);
   });
 
   initNewShoe();
