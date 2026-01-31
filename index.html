@@ -18,6 +18,10 @@
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --warn:#ffcc0033;
       --warnLine:#ffcc0066;
+
+      /* ✅ 這兩個會由 JS 自動更新，避免 sticky 重疊 */
+      --stickyPickH: 92px;
+      --gapTop: 8px;
     }
     *{box-sizing:border-box;}
     body{
@@ -32,10 +36,25 @@
     }
     .app{max-width:1100px;margin:0 auto;}
 
+    /* ✅ 建議下注：固定在最上方 */
+    .stickyPick{
+      position: sticky;
+      top: var(--gapTop);
+      z-index: 200;
+      margin: 0 0 8px;
+      border: 1px solid #ffffff20;
+      background: #00000055;
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
     .topbar{
       display:grid; grid-template-columns: 1fr auto 1fr;
-      gap:10px; border-radius:28px; overflow:hidden;
-      box-shadow:var(--shadow); border:1px solid var(--line);
+      gap:10px;
+      border-radius:18px;
+      overflow:hidden;
     }
     .side{display:flex;align-items:center;padding:16px;min-height:76px;}
     .side.player{background:linear-gradient(90deg,#0e5fe0,var(--P));}
@@ -51,13 +70,16 @@
       min-width:180px; position:relative;
     }
     #scoreOnly{
-      font-size:56px;font-weight:1100;
+      font-size:44px; /* ✅ sticky 上方顯示更舒服 */
+      font-weight:1100;
       text-shadow:0 3px 0 rgba(0,0,0,.25);
       letter-spacing:2px;
       white-space:nowrap;
+      line-height:1.05;
     }
     .scoreHint{
-      position:absolute; bottom:6px; left:50%;
+      position:absolute;
+      bottom:8px; left:50%;
       transform:translateX(-50%);
       font-size:12px; color:var(--muted); opacity:.85;
       white-space:nowrap;
@@ -112,10 +134,11 @@
       font-weight:900;
     }
 
+    /* ✅ quickRec 也固定，但會自動排在 stickyPick 下方（不重疊） */
     .quickRec{
       position: sticky;
-      top: 8px;
-      z-index: 80;
+      top: calc(var(--gapTop) + var(--stickyPickH) + 8px);
+      z-index: 150;
       display:flex;
       gap:10px;
       flex-wrap:wrap;
@@ -127,30 +150,7 @@
       border-radius:16px;
       backdrop-filter: blur(8px);
     }
-/* ✅ 建議下注：往下滑也固定顯示在最上方 */
-.stickyPick{
-  position: sticky;
-  top: 8px;
-  z-index: 120;             /* 要比 quickRec 高 */
-  margin: 10px 0 6px;
-  border: 1px solid #ffffff20;
-  background: #00000055;
-  border-radius: 18px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
-}
 
-/* 讓上面 PASS/莊/閒更醒目、不要被擠 */
-.stickyPick #scoreOnly{
-  font-size: 44px;
-}
-
-.stickyPick .scoreHint{
-  position: static;
-  transform: none;
-  margin-top: 4px;
-  opacity: .85;
-}
     .handBox{
       border:1px solid #ffffff20;
       background:#0000001a;
@@ -222,34 +222,26 @@
 <body>
 <div class="app">
 
-<div class="stickyPick">
-  <div class="topbar">
-    <div class="side player">
-      <div class="label"><div class="zh">閒</div><div class="en">PLAYER</div></div>
-    </div>
+  <!-- ✅ 建議下注：固定在最上方（只保留一份，避免 ID 重複） -->
+  <div class="stickyPick" id="stickyPick">
+    <div class="topbar">
+      <div class="side player">
+        <div class="label"><div class="zh">閒</div><div class="en">PLAYER</div></div>
+      </div>
 
-    <div class="score" aria-label="Pick">
-      <div id="scoreOnly">—</div>
-      <div class="scoreHint">下一把推薦</div>
-    </div>
+      <div class="score" aria-label="Pick">
+        <div id="scoreOnly">—</div>
+        <div class="scoreHint">下一把推薦</div>
+      </div>
 
-    <div class="side banker">
-      <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
-    </div>
-  </div>
-</div>
-
-    <div class="score" aria-label="Pick">
-      <div id="scoreOnly">—</div>
-      <div class="scoreHint">下一把推薦</div>
-    </div>
-
-    <div class="side banker">
-      <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
+      <div class="side banker">
+        <div class="label"><div class="zh">莊</div><div class="en">BANKER</div></div>
+      </div>
     </div>
   </div>
 
-  <div class="quickRec" aria-label="快捷">
+  <!-- ✅ 快捷：固定在 stickyPick 下方（不重疊） -->
+  <div class="quickRec" aria-label="快捷" id="quickRec">
     <button class="btn small danger" id="btnNewShoe">新鞋（重置）</button>
     <button class="btn small" id="btnUndoRound">Undo 上局</button>
     <button class="btn small danger" id="btnClearAll">全部清空</button>
@@ -275,13 +267,13 @@
           <button class="btn danger" id="btnClearHand">清空</button>
         </div>
 
-        <!-- ✅ 你要的：計算按鈕放在「清空」下面 -->
+        <!-- ✅ 計算按鈕：在清空下面 -->
         <button class="btn ok" id="btnCalcRound"
           style="width:100%; margin-top:10px; padding:14px 10px; font-size:16px;">
           計算下一局機率（自動判定勝負＋扣牌）
         </button>
 
-        <!-- ✅ 刪除「連續輸入」：保留最簡單的手動切換 -->
+        <!-- ✅ 已刪除連續輸入：只保留手動切換 -->
         <div class="miniRow" style="margin-top:10px;">
           <div class="chip">目前輸入：<span class="mono" id="activeSide">閒</span></div>
           <button class="btn small P" id="btnPickP">切到閒</button>
@@ -433,6 +425,15 @@
 </div>
 
 <script>
+/* ✅ 避免 stickyPick 與 quickRec 重疊：自動計算高度 */
+function updateStickyHeights(){
+  const sp = document.getElementById('stickyPick');
+  if (!sp) return;
+  const h = sp.offsetHeight || 92;
+  document.documentElement.style.setProperty('--stickyPickH', h + 'px');
+}
+window.addEventListener('resize', updateStickyHeights);
+
 /* ===========================
    牌鞋（只追蹤點數 0~9）
 =========================== */
@@ -471,13 +472,11 @@ function setText(id, txt){
   const el = document.getElementById(id);
   if (el) el.textContent = txt;
 }
-function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
 function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
 function sideName(s){
   return s==='B' ? '莊' : s==='P' ? '閒' : s==='T' ? '和' : s==='PASS' ? 'PASS' : '—';
 }
 function mod10(x){ return ((x%10)+10)%10; }
-function opposite(side){ return side === 'B' ? 'P' : side === 'P' ? 'B' : 'T'; }
 
 let active = 'P';
 let inP = '';
@@ -599,7 +598,6 @@ function pickByStrategy(pP, pB, pT){
   const display = (bestAll==='T') ? `和/${sideName(betPick)}` : sideName(betPick);
 
   setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜PASS門檻=${passThr.toFixed(3)}｜目前max(B/P)=${maxBP.toFixed(5)}`);
-
   return {display, betPick, maxBP};
 }
 
@@ -833,12 +831,10 @@ function applyRoundAndCalc(){
   const martCap = Math.max(2, parseInt(document.getElementById('martCap')?.value,10) || 8);
 
   const unitUsed = betState.unit || 1;
-  let betLogAdded = false;
   let betPickUsed = betState.lastPick;
 
   if (betPickUsed){
     betState.logs.push({ pick: betPickUsed, result: res, unit: unitUsed });
-    betLogAdded = true;
 
     if (strategy === 'martingale'){
       if (res === 'T'){
@@ -854,7 +850,7 @@ function applyRoundAndCalc(){
     pCards: pCards.slice(),
     bCards: bCards.slice(),
     result: res,
-    betLogAdded,
+    betLogAdded: !!betPickUsed,
     betPick: betPickUsed,
     unitUsed
   });
@@ -936,6 +932,8 @@ function on(id, ev, fn){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  updateStickyHeights();
+
   const pad = document.getElementById('numPad');
   for (let i=0;i<=9;i++){
     const b = document.createElement('button');
