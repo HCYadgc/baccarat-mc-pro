@@ -781,10 +781,25 @@ function updateLastWinnerUI(){
 }
 
 /* ===== MC ===== */
+// ===== 高品質亂數：crypto.getRandomValues =====
+const _u32 = new Uint32Array(1);
+
+// 產生 [0, n) 的均勻整數（避免 modulo bias）
+function randInt(n){
+  if (n <= 0) return 0;
+  const limit = Math.floor(0x100000000 / n) * n; // 2^32 的倍數
+  while (true){
+    crypto.getRandomValues(_u32);
+    const x = _u32[0];
+    if (x < limit) return x % n;
+  }
+}
+
 function drawCard(counts){
   const total = counts.reduce((a,b)=>a+b,0);
   if (total <= 0) return null;
-  let r = Math.floor(Math.random() * total);
+
+  let r = randInt(total);
   for (let v=0; v<=9; v++){
     const k = counts[v];
     if (r < k){ counts[v]--; return v; }
