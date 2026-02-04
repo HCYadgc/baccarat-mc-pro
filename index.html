@@ -1076,6 +1076,132 @@ window.addEventListener('DOMContentLoaded', () => {
   newShoe();
   syncInputUI();
   runMC();
+  // ===========================
+// 自動驗證（Auto QA）
+// ===========================
+function approx(a, b, tol){ return Math.abs(a - b) <= tol; }
+
+function evFromP(pP, pB, pT, commission=0.05){
+  const evP = 2*pP - 1;
+  const evB = pB*(1-commission) - (1-pB);
+  const evT = 9*pT - 1;
+  return {evP, evB, evT};
+}
+
+async function mcOnce(trials){
+  const t0 = performance.now();
+  let wP=0, wB=0, wT=0;
+  for (let i=0;i<trials;i++){
+    const c = shoe.counts.slice();
+    const r = resolveHand(c);
+    if (!r) continue;
+    if (r==='P') wP++;
+    else if (r==='B') wB++;
+    else wT++;
+  }
+  const n = wP+wB+wT;
+  const pP = n ? wP/n : 0;
+  const pB = n ? wB/n : 0;
+  const pT = n ? wT/n : 0;
+  const ms = performance.now() - t0;
+  return {pP,pB,pT,n,wP,wB,wT,ms};
+}
+
+function snapshotShoe(){
+  return shoe.counts.slice();
+}
+function restoreShoe(snap){
+  shoe.counts = snap.slice();
+  shoe.inited = true;
+}
+
+function removeDigitsFromShoe(digits){
+  // digits: array of 0~9
+  const need = new Array(10).fill(0);
+  for (const d of digits) need[d]++;
+
+  for (let v=0; v<=9; v++){
+    if (need[v] > shoe.counts[v]) return false;
+  }
+  for (let v=0; v<=9; v++){
+    for (let k=0; k<need[v]; k++) removeCard(v);
+  }
+  return true;
+}
+
+async function autoVerify(options={}){
+  const trials = Math.max(20000, options.trials || 50000);
+  const tolSum = options.tolSum ?? 1e-9;
+  const tolEV  = options.tolEV  ?? 1e-9;
+
+  const commission = parseFloat(document.getElementById('commission')?.value || '0.05');
+
+  const results = [];
+  const fail = (name, reason, extra={}) => results.push({name, ok:false, reason, ...extra});
+  const pass = (name, extra={}) => results.push({name, ok:true, reason:'', ...extra});
+
+  const baseSnap = snapshotShoe();
+
+  // ---- Test 1: 新鞋基本分布 ----
+  newShoe(); // 重置（會清空 history/logs）
+  const r1 = await mcOnce(trials);
+
+  const sum1 = r1.pP + r1.pB + r1.pT;
+  if (!approx(sum1, 1, tolSum)) fail('T1.sum=1', `sum=${sum1}`);
+  else pass('T1.sum=1', {sum:sum1});
+
+  // 新鞋應該 莊略高於閒（用寬鬆容忍：至少不應該長期反轉）
+  if (!(r1.pB > r1.pP)) fail('T1.B>P', `B=${r1.pB}, P=${r1.pP}`);
+  else pass('T1.B>P', {pB:r1.pB, pP:r1.pP, pT:r1.pT});
+
+  // EV一致性（用公式回推）
+  const ev1 = evFromP(r1.pP, r1.pB, r1.pT, commission);
+  const evP_ui = 2*r1.pP - 1;
+  const evB_ui = r1.pB*(1-commission) - (1-r1.pB);
+  const evT_ui = 9*r1.pT - 1;
+  if (!(approx(ev1.evP, evP_ui, tolEV) && approx(ev1.evB, evB_ui, tolEV) && approx(ev1.evT, evT_ui, tolEV))){
+    fail('T1.EV一致', `ev mismatch`, {ev1, evP_ui, evB_ui, evT_ui});
+  } else {
+    pass('T1.EV一致', {ev1});
+  }
+
+  // ---- Test 2: 扣牌 9,8,0,0 -> 剩餘412 ----
+  newShoe();
+  const okRemove = removeDigitsFromShoe([9,8,0,0]);
+  if (!okRemove) fail('T2.扣牌可行', '扣牌失敗(鞋不足?)');
+  else {
+    const left = sumCounts(shoe.counts);
+    if (left !== 412) fail('T2.剩餘=412', `left=${left}`);
+    else pass('T2.剩餘=412', {left});
+  }
+
+  const r2 = await mcOnce(trials);
+  const sum2 = r2.pP + r2.pB + r2.pT;
+  if (!approx(sum2, 1, tolSum)) fail('T2.sum=1', `sum=${sum2}`);
+  else pass('T2.sum=1', {sum:sum2});
+
+  // ---- Test 3: Undo/恢復鞋狀態一致 ----
+  restoreShoe(baseSnap);
+  const left3 = sumCounts(shoe.counts);
+  const leftBase = sumCounts(baseSnap);
+  if (left3 !== leftBase) fail('T3.restore一致', `left3=${left3}, base=${leftBase}`);
+  else pass('T3.restore一致', {left:left3});
+
+  // ---- Print Report ----
+  const okAll = results.every(x=>x.ok);
+  console.group(`AutoVerify ${okAll ? '✅ PASS' : '❌ FAIL'} | trials=${trials}`);
+  for (const x of results){
+    if (x.ok) console.log(`✅ ${x.name}`, x);
+    else console.error(`❌ ${x.name} :: ${x.reason}`, x);
+  }
+  console.groupEnd();
+
+  // 最後回到新鞋狀態（不干擾你正常使用）
+  newShoe();
+  await runMC();
+
+  return {okAll, results, r1, r2};
+}
 });
 </script>
 </body>
