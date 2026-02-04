@@ -238,6 +238,7 @@
     <button class="btn small danger" id="btnNewShoe">新鞋（重置）</button>
     <button class="btn small" id="btnUndoRound">Undo 上局</button>
     <button class="btn small danger" id="btnClearAll">全部清空</button>
+    <button class="btn small ok" id="btnAutoVerify">自動驗證</button>
   </div>
 
   <div class="grid2">
@@ -285,7 +286,6 @@
 
       <div class="hr"></div>
 
-      <!-- ✅ 你要的：回測移到鞋狀態上面（近 N 把只算下注） -->
       <div class="rowline" style="justify-content:space-between; gap:10px;">
         <div style="flex:1; min-width:260px;">
           <div class="muted">近 N 把命中率回測（只算有下注）</div>
@@ -376,7 +376,6 @@
         <div class="rowline">
           <div style="font-weight:1100;">EV 門檻 PASS 模式</div>
           <div class="miniRow">
-            <!-- ✅ (1) PASS 預設關掉 -->
             <label class="chip">
               <input id="passOn" type="checkbox">
               啟用 PASS
@@ -436,15 +435,12 @@ window.addEventListener('resize', updateStickyHeights);
 =========================== */
 const ROAD = {
   enabled: true,
-  weight: 0.00035,   // 很小：只用來打破平手
+  weight: 0.00035,
   scale: 1.0,
-  eps: 0.0006,       // 只有 |EV莊 - EV閒| < eps 才介入
-  lookback: 18       // 取最近非和結果
+  eps: 0.0006,
+  lookback: 18
 };
 
-// 小路訊號：簡化版（不顯示，只產生微小偏好）
-// - 若近期「連」多：偏向跟路（偏向最後勝方）
-// - 若近期「跳」多：偏向反（偏離最後勝方）
 function roadSignalFromHistory(hist){
   const arr = [];
   for (let i=hist.length-1; i>=0 && arr.length<ROAD.lookback; i--){
@@ -454,14 +450,12 @@ function roadSignalFromHistory(hist){
   }
   if (arr.length < 6) return {biasB:0, mode:'none', strength:0, note:'too_short'};
 
-  // 計算「跳」比例（相鄰不同算跳）
   let chops = 0;
   for (let i=1;i<arr.length;i++){
     if (arr[i] !== arr[i-1]) chops++;
   }
   const chopRate = chops / (arr.length-1);
 
-  // 連：看最後一段 streak
   const last = arr[0];
   let streak = 1;
   for (let i=1;i<arr.length;i++){
@@ -470,19 +464,15 @@ function roadSignalFromHistory(hist){
   }
 
   let mode = 'none';
-  // chop 多 -> 偏反；連多 -> 偏跟
   if (chopRate >= 0.62) mode = 'chop';
   else if (streak >= 3) mode = 'streak';
   else mode = 'none';
 
-  // 產生 biasB：+ 偏莊 / - 偏閒
-  // 跟路：偏最後勝方；反路：偏最後勝方的反面
   let bias = 0;
   if (mode === 'streak'){
     bias = (last === 'B') ? +1 : -1;
-    bias *= Math.min(1, (streak-2)/4); // 連越長越強，但上限1
+    bias *= Math.min(1, (streak-2)/4);
   } else if (mode === 'chop'){
-    // 反：偏向「跟上一次的相反」
     bias = (last === 'B') ? -1 : +1;
     bias *= Math.min(1, (chopRate-0.62)/0.20);
   } else {
@@ -626,10 +616,8 @@ function pickByStrategy(pP, pB, pT){
   const passOn = !!document.getElementById('passOn')?.checked;
   const passThr = parseFloat(document.getElementById('passThr')?.value || '-0.004');
 
-  // 基礎 EV
   let {evP, evB, evT} = calcEV(pP, pB, pT, commission);
 
-  // ✅ (2) 小路只在 EV 很接近時才介入（打破平手，不亂翻盤）
   let road = {biasB:0, mode:'none', strength:0, note:''};
   const diff0 = Math.abs(evB - evP);
   if (ROAD.enabled && diff0 < ROAD.eps){
@@ -642,7 +630,6 @@ function pickByStrategy(pP, pB, pT){
   const bestBP = (evB >= evP) ? {side:'B', ev:evB} : {side:'P', ev:evP};
   const maxBP = bestBP.ev;
 
-  // ✅ (1) PASS：只有 passOn 才會觸發；且門檻預設為負數，避免一直 PASS
   if (passOn && maxBP < passThr){
     setText('evLine',
       `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜PASS門檻=${passThr.toFixed(3)}｜max(B/P)=${maxBP.toFixed(5)}`
@@ -731,7 +718,6 @@ function updateBetUI(pP, pB, pT){
   updateRandomZoneAlert();
 }
 
-/* ✅ (3) 回測：淨單位加入莊抽水 */
 function calcBacktest(N){
   const logs = betState.logs || [];
   if (!logs.length){
@@ -751,8 +737,8 @@ function calcBacktest(N){
 
     if (x.result === x.pick){
       win++;
-      if (x.pick === 'B') netUnits += u * (1 - commission); // ✅ 莊抽水
-      else netUnits += u; // 閒不抽水
+      if (x.pick === 'B') netUnits += u * (1 - commission);
+      else netUnits += u;
     } else {
       loss++;
       netUnits -= u;
@@ -781,13 +767,11 @@ function updateLastWinnerUI(){
 }
 
 /* ===== MC ===== */
-// ===== 高品質亂數：crypto.getRandomValues =====
 const _u32 = new Uint32Array(1);
 
-// 產生 [0, n) 的均勻整數（避免 modulo bias）
 function randInt(n){
   if (n <= 0) return 0;
-  const limit = Math.floor(0x100000000 / n) * n; // 2^32 的倍數
+  const limit = Math.floor(0x100000000 / n) * n;
   while (true){
     crypto.getRandomValues(_u32);
     const x = _u32[0];
@@ -894,7 +878,6 @@ async function runMC(){
   calcBacktest(document.getElementById('backN')?.value || 30);
 }
 
-/* ===== 你按計算 ===== */
 function applyRoundAndCalc(){
   const pCards = parseCards(inP);
   const bCards = parseCards(inB);
@@ -1033,53 +1016,9 @@ function on(id, ev, fn){
   if (el) el.addEventListener(ev, fn);
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  updateStickyHeights();
-
-  const pad = document.getElementById('numPad');
-  for (let i=0;i<=9;i++){
-    const b = document.createElement('button');
-    b.className = 'btn';
-    b.textContent = String(i);
-    b.addEventListener('click', ()=> pushDigit(i));
-    pad.appendChild(b);
-  }
-
-  on('btnPickP','click', ()=>{ active='P'; syncInputUI(); });
-  on('btnPickB','click', ()=>{ active='B'; syncInputUI(); });
-  on('fieldP','click', ()=>{ active='P'; syncInputUI(); });
-  on('fieldB','click', ()=>{ active='B'; syncInputUI(); });
-
-  on('btnBack','click', backspace);
-  on('btnClearInput','click', clearSideOnly);
-  on('btnClearHand','click', clearInput);
-
-  on('btnCalcRound','click', applyRoundAndCalc);
-
-  on('btnNewShoe','click', newShoe);
-  on('btnUndoRound','click', undoRound);
-  on('btnClearAll','click', clearAll);
-
-  ['commission','strategy','streakN','martCap','passOn','passThr','backN'].forEach(id=>{
-    on(id, 'change', ()=>{
-      if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
-      calcBacktest(document.getElementById('backN')?.value || 30);
-    });
-    on(id, 'input', ()=>{
-      if (id==='passThr' || id==='backN'){
-        if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
-        calcBacktest(document.getElementById('backN')?.value || 30);
-      }
-    });
-  });
-
-  newShoe();
-  syncInputUI();
-  runMC();
-});
-  // ===========================
-// 自動驗證（Auto QA）
-// ===========================
+/* ===========================
+   自動驗證（Auto QA）- 做成 window.autoVerify()
+=========================== */
 function approx(a, b, tol){ return Math.abs(a - b) <= tol; }
 
 function evFromP(pP, pB, pT, commission=0.05){
@@ -1108,16 +1047,13 @@ async function mcOnce(trials){
   return {pP,pB,pT,n,wP,wB,wT,ms};
 }
 
-function snapshotShoe(){
-  return shoe.counts.slice();
-}
+function snapshotShoe(){ return shoe.counts.slice(); }
 function restoreShoe(snap){
   shoe.counts = snap.slice();
   shoe.inited = true;
 }
 
 function removeDigitsFromShoe(digits){
-  // digits: array of 0~9
   const need = new Array(10).fill(0);
   for (const d of digits) need[d]++;
 
@@ -1130,7 +1066,7 @@ function removeDigitsFromShoe(digits){
   return true;
 }
 
-async function autoVerify(options={}){
+window.autoVerify = async function autoVerify(options={}){
   const trials = Math.max(20000, options.trials || 50000);
   const tolSum = options.tolSum ?? 1e-9;
   const tolEV  = options.tolEV  ?? 1e-9;
@@ -1143,30 +1079,26 @@ async function autoVerify(options={}){
 
   const baseSnap = snapshotShoe();
 
-  // ---- Test 1: 新鞋基本分布 ----
-  newShoe(); // 重置（會清空 history/logs）
+  newShoe();
   const r1 = await mcOnce(trials);
 
   const sum1 = r1.pP + r1.pB + r1.pT;
   if (!approx(sum1, 1, tolSum)) fail('T1.sum=1', `sum=${sum1}`);
   else pass('T1.sum=1', {sum:sum1});
 
-  // 新鞋應該 莊略高於閒（用寬鬆容忍：至少不應該長期反轉）
   if (!(r1.pB > r1.pP)) fail('T1.B>P', `B=${r1.pB}, P=${r1.pP}`);
   else pass('T1.B>P', {pB:r1.pB, pP:r1.pP, pT:r1.pT});
 
-  // EV一致性（用公式回推）
   const ev1 = evFromP(r1.pP, r1.pB, r1.pT, commission);
   const evP_ui = 2*r1.pP - 1;
   const evB_ui = r1.pB*(1-commission) - (1-r1.pB);
   const evT_ui = 9*r1.pT - 1;
   if (!(approx(ev1.evP, evP_ui, tolEV) && approx(ev1.evB, evB_ui, tolEV) && approx(ev1.evT, evT_ui, tolEV))){
-    fail('T1.EV一致', `ev mismatch`, {ev1, evP_ui, evB_ui, evT_ui});
+    fail('T1.EV一致', 'ev mismatch', {ev1, evP_ui, evB_ui, evT_ui});
   } else {
     pass('T1.EV一致', {ev1});
   }
 
-  // ---- Test 2: 扣牌 9,8,0,0 -> 剩餘412 ----
   newShoe();
   const okRemove = removeDigitsFromShoe([9,8,0,0]);
   if (!okRemove) fail('T2.扣牌可行', '扣牌失敗(鞋不足?)');
@@ -1181,14 +1113,12 @@ async function autoVerify(options={}){
   if (!approx(sum2, 1, tolSum)) fail('T2.sum=1', `sum=${sum2}`);
   else pass('T2.sum=1', {sum:sum2});
 
-  // ---- Test 3: Undo/恢復鞋狀態一致 ----
   restoreShoe(baseSnap);
   const left3 = sumCounts(shoe.counts);
   const leftBase = sumCounts(baseSnap);
   if (left3 !== leftBase) fail('T3.restore一致', `left3=${left3}, base=${leftBase}`);
   else pass('T3.restore一致', {left:left3});
 
-  // ---- Print Report ----
   const okAll = results.every(x=>x.ok);
   console.group(`AutoVerify ${okAll ? '✅ PASS' : '❌ FAIL'} | trials=${trials}`);
   for (const x of results){
@@ -1197,12 +1127,64 @@ async function autoVerify(options={}){
   }
   console.groupEnd();
 
-  // 最後回到新鞋狀態（不干擾你正常使用）
   newShoe();
   await runMC();
 
   return {okAll, results, r1, r2};
-}
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  updateStickyHeights();
+
+  const pad = document.getElementById('numPad');
+  for (let i=0;i<=9;i++){
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = String(i);
+    b.addEventListener('click', ()=> pushDigit(i));
+    pad.appendChild(b);
+  }
+
+  on('btnPickP','click', ()=>{ active='P'; syncInputUI(); });
+  on('btnPickB','click', ()=>{ active='B'; syncInputUI(); });
+  on('fieldP','click', ()=>{ active='P'; syncInputUI(); });
+  on('fieldB','click', ()=>{ active='B'; syncInputUI(); });
+
+  on('btnBack','click', backspace);
+  on('btnClearInput','click', clearSideOnly);
+  on('btnClearHand','click', clearInput);
+
+  on('btnCalcRound','click', applyRoundAndCalc);
+
+  on('btnNewShoe','click', newShoe);
+  on('btnUndoRound','click', undoRound);
+  on('btnClearAll','click', clearAll);
+
+  on('btnAutoVerify','click', async ()=>{
+    console.clear();
+    console.log('AutoVerify running...');
+    const r = await window.autoVerify({trials: 50000});
+    alert(r.okAll ? 'AutoVerify ✅ PASS（詳情看 console）' : 'AutoVerify ❌ FAIL（詳情看 console）');
+  });
+
+  // ✅ 這段 forEach 你原本壞掉的，我已修好
+  ['commission','strategy','streakN','martCap','passOn','passThr','backN'].forEach(id=>{
+    on(id, 'change', ()=>{
+      if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
+      calcBacktest(document.getElementById('backN')?.value || 30);
+    });
+    on(id, 'input', ()=>{
+      if (id==='passThr' || id==='backN'){
+        if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
+        calcBacktest(document.getElementById('backN')?.value || 30);
+      }
+    });
+  });
+
+  newShoe();
+  syncInputUI();
+  runMC();
+});
 </script>
 </body>
 </html>
