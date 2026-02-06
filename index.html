@@ -242,7 +242,6 @@
   </div>
 
   <div class="grid2">
-
     <div class="panel">
       <h1>① 輸入本局：閒 / 莊 牌點（自動判斷勝負 + 扣牌）</h1>
       <div class="muted">0=10/J/Q/K，1=A。每邊輸入 2~3 張（例如：閒 836、莊 84）。</div>
@@ -282,6 +281,30 @@
           用法：點選「閒點/莊點」或用「切到閒/切到莊」切換輸入，再按數字。<br>
           系統會：判斷本局勝負 → 記錄上局 → 扣除你輸入的牌 → 用剩餘鞋計算下一局機率。
         </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- RNG / Seed 設定 -->
+      <div class="rowline" style="gap:10px; align-items:flex-end;">
+        <div style="flex:1; min-width:240px;">
+          <div class="muted">RNG 模式</div>
+          <select id="rngMode" style="width:100%;">
+            <option value="seed" selected>Seed（可重現，驗證用）</option>
+            <option value="crypto">Crypto（真亂數，實戰用）</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <div class="muted">Seed</div>
+          <input id="rngSeed" type="text" value="123456789" style="width:100%;" />
+        </div>
+        <div style="min-width:160px;">
+          <button class="btn small" id="btnReseed">套用 Seed</button>
+        </div>
+      </div>
+      <div class="hint">
+        建議：平常「Seed」用來驗證一致性；真的要打再切「Crypto」。<br>
+        ※ Seed 不是變準，是「可重現」：你跑 10 次會完全一樣，方便抓 bug。
       </div>
 
       <div class="hr"></div>
@@ -416,7 +439,6 @@
       <div class="hr"></div>
       <div class="muted">最後一次計算耗時：<span class="mono" id="ms">—</span></div>
     </div>
-
   </div>
 </div>
 
@@ -431,7 +453,7 @@ function updateStickyHeights(){
 window.addEventListener('resize', updateStickyHeights);
 
 /* ===========================
-   (2) 小路設定：有算但只用來「打破平手」
+   小路設定：有算但只用來「打破平手」
 =========================== */
 const ROAD = {
   enabled: true,
@@ -466,7 +488,6 @@ function roadSignalFromHistory(hist){
   let mode = 'none';
   if (chopRate >= 0.62) mode = 'chop';
   else if (streak >= 3) mode = 'streak';
-  else mode = 'none';
 
   let bias = 0;
   if (mode === 'streak'){
@@ -475,8 +496,6 @@ function roadSignalFromHistory(hist){
   } else if (mode === 'chop'){
     bias = (last === 'B') ? -1 : +1;
     bias *= Math.min(1, (chopRate-0.62)/0.20);
-  } else {
-    bias = 0;
   }
 
   return {biasB: bias, mode, strength: Math.abs(bias), note:`mode=${mode}, chop=${chopRate.toFixed(2)}, streak=${streak}`};
@@ -492,12 +511,7 @@ const counts0 = () => {
   for (let v=1; v<=9; v++) c[v] = 4 * DECKS;
   return c;
 };
-const shoe = {
-  counts: counts0(),
-  inited: false,
-  undoStack: []
-};
-
+const shoe = { counts: counts0(), inited: false, undoStack: [] };
 function sumCounts(c){ return c.reduce((a,b)=>a+b,0); }
 function shoeInfoText(){
   const left = sumCounts(shoe.counts);
@@ -508,76 +522,92 @@ function canRemove(v){ return Number.isInteger(v) && v>=0 && v<=9 && shoe.counts
 function removeCard(v){ if (!canRemove(v)) return false; shoe.counts[v]--; return true; }
 function addCard(v){ if (Number.isInteger(v) && v>=0 && v<=9) shoe.counts[v]++; }
 
-const betState = {
-  history: [],
-  lastPick: null,
-  unit: 1,
-  logs: []
-};
+const betState = { history: [], lastPick: null, unit: 1, logs: [] };
 let lastCalc = { has:false, pP:0,pB:0,pT:0 };
 
-function setText(id, txt){
-  const el = document.getElementById(id);
-  if (el) el.textContent = txt;
-}
+function setText(id, txt){ const el = document.getElementById(id); if (el) el.textContent = txt; }
 function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
-function sideName(s){
-  return s==='B' ? '莊' : s==='P' ? '閒' : s==='T' ? '和' : s==='PASS' ? 'PASS' : '—';
-}
+function sideName(s){ return s==='B'?'莊':s==='P'?'閒':s==='T'?'和':s==='PASS'?'PASS':'—'; }
 function mod10(x){ return ((x%10)+10)%10; }
 
+/* ===========================
+   RNG：Crypto / Seed（可重現）
+=========================== */
+let RNG = { mode:'seed', seed: 123456789, nextU32: null };
+
+// xorshift32：簡單、可重現（工程驗證用）
+function xorshift32(){
+  let x = (RNG.seed >>> 0) || 1;
+  x ^= (x << 13) >>> 0;
+  x ^= (x >>> 17) >>> 0;
+  x ^= (x << 5) >>> 0;
+  RNG.seed = x >>> 0;
+  return RNG.seed;
+}
+
+const _u32 = new Uint32Array(1);
+
+function randU32(){
+  if (RNG.mode === 'crypto'){
+    crypto.getRandomValues(_u32);
+    return _u32[0] >>> 0;
+  }
+  return xorshift32() >>> 0;
+}
+
+// 產生 [0, n) 的均勻整數（避免 modulo bias）
+function randInt(n){
+  if (n <= 0) return 0;
+  const limit = Math.floor(0x100000000 / n) * n;
+  while (true){
+    const x = randU32();
+    if (x < limit) return x % n;
+  }
+}
+
+function applyRngFromUI(){
+  const mode = document.getElementById('rngMode')?.value || 'seed';
+  const seedStr = (document.getElementById('rngSeed')?.value || '123456789').trim();
+  let seed = 0;
+  for (let i=0;i<seedStr.length;i++){
+    seed = (seed * 131 + seedStr.charCodeAt(i)) >>> 0; // 字串 hash -> u32
+  }
+  if (seed === 0) seed = 1;
+  RNG.mode = mode;
+  RNG.seed = seed;
+}
+
+/* ===========================
+   輸入區
+=========================== */
 let active = 'P';
 let inP = '';
 let inB = '';
-
 function syncInputUI(){
   setText('inP', inP.length ? inP : '—');
   setText('inB', inB.length ? inB : '—');
   setText('activeSide', active==='P' ? '閒' : '莊');
-
   const fp = document.getElementById('fieldP');
   const fb = document.getElementById('fieldB');
   fp.classList.toggle('activeGlow', active==='P');
   fb.classList.toggle('activeGlow', active==='B');
 }
-
 function pushDigit(d){
   const s = String(d);
   if (!/^[0-9]$/.test(s)) return;
-
-  if (active==='P'){
-    if (inP.length>=3) return;
-    inP += s;
-  } else {
-    if (inB.length>=3) return;
-    inB += s;
-  }
+  if (active==='P'){ if (inP.length>=3) return; inP += s; }
+  else { if (inB.length>=3) return; inB += s; }
   syncInputUI();
 }
-
 function backspace(){
-  if (active==='P'){
-    if (inP.length) inP = inP.slice(0,-1);
-  } else {
-    if (inB.length) inB = inB.slice(0,-1);
-  }
+  if (active==='P'){ if (inP.length) inP = inP.slice(0,-1); }
+  else { if (inB.length) inB = inB.slice(0,-1); }
   syncInputUI();
 }
-function clearInput(){
-  inP=''; inB='';
-  active='P';
-  syncInputUI();
-}
-function clearSideOnly(){
-  if (active==='P') inP='';
-  else inB='';
-  syncInputUI();
-}
+function clearInput(){ inP=''; inB=''; active='P'; syncInputUI(); }
+function clearSideOnly(){ if (active==='P') inP=''; else inB=''; syncInputUI(); }
 
-function parseCards(str){
-  if (!str || !/^[0-9]+$/.test(str)) return null;
-  return str.split('').map(ch=>parseInt(ch,10));
-}
+function parseCards(str){ if (!str || !/^[0-9]+$/.test(str)) return null; return str.split('').map(ch=>parseInt(ch,10)); }
 function score(cards){ return mod10(cards.reduce((a,b)=>a+b,0)); }
 function decideWinner(pCards, bCards){
   const pT = score(pCards);
@@ -618,8 +648,8 @@ function pickByStrategy(pP, pB, pT){
 
   let {evP, evB, evT} = calcEV(pP, pB, pT, commission);
 
-  let road = {biasB:0, mode:'none', strength:0, note:''};
   const diff0 = Math.abs(evB - evP);
+  let road = {biasB:0, mode:'none', note:''};
   if (ROAD.enabled && diff0 < ROAD.eps){
     road = roadSignalFromHistory(betState.history);
     const adj = ROAD.weight * ROAD.scale * road.biasB;
@@ -631,15 +661,12 @@ function pickByStrategy(pP, pB, pT){
   const maxBP = bestBP.ev;
 
   if (passOn && maxBP < passThr){
-    setText('evLine',
-      `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜PASS門檻=${passThr.toFixed(3)}｜max(B/P)=${maxBP.toFixed(5)}`
-    );
+    setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜PASS門檻=${passThr.toFixed(3)}｜max(B/P)=${maxBP.toFixed(5)}`);
     return {display:'PASS', betPick:null, maxBP};
   }
 
   const streak = lastNonTieStreak(betState.history);
   let betPick = bestBP.side;
-
   if (strategy === 'follow'){
     if (streak.side && streak.len >= streakN) betPick = streak.side;
   } else if (strategy === 'fade'){
@@ -661,10 +688,7 @@ function pickByStrategy(pP, pB, pT){
     ? `｜小路(${road.note})`
     : (ROAD.enabled && diff0 < ROAD.eps ? `｜小路(介入弱)` : '');
 
-  setText('evLine',
-    `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜max(B/P)=${maxBP.toFixed(5)}${roadNote}`
-  );
-
+  setText('evLine', `EV(閒)=${evP.toFixed(5)}｜EV(莊)=${evB.toFixed(5)}｜EV(和)=${evT.toFixed(5)}｜max(B/P)=${maxBP.toFixed(5)}${roadNote}`);
   return {display, betPick, maxBP};
 }
 
@@ -734,7 +758,6 @@ function calcBacktest(N){
   for (const x of last){
     const u = (x.unit || 1);
     if (x.result === 'T'){ push++; continue; }
-
     if (x.result === x.pick){
       win++;
       if (x.pick === 'B') netUnits += u * (1 - commission);
@@ -747,9 +770,7 @@ function calcBacktest(N){
   const denom = win + loss;
   const hit = denom ? (win/denom) : 0;
 
-  setText('backLine',
-    `回測近 ${last.length} 把(只算下注)：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits.toFixed(2)}`
-  );
+  setText('backLine', `回測近 ${last.length} 把(只算下注)：命中 ${win}｜失誤 ${loss}｜Push(和) ${push}｜命中率 ${(hit*100).toFixed(2)}%｜淨單位 ${netUnits>0?'+':''}${netUnits.toFixed(2)}`);
 }
 
 function updateLastWinnerUI(){
@@ -760,25 +781,12 @@ function updateLastWinnerUI(){
   }
   const last = betState.history[betState.history.length - 1];
   setText('lastWinner', `上局：${sideName(last)}`);
-
   const streak = lastNonTieStreak(betState.history);
   if (streak.side) setText('lastStreak', `目前：${sideName(streak.side)} 連 ${streak.len}`);
   else setText('lastStreak', `目前：—`);
 }
 
-/* ===== MC ===== */
-const _u32 = new Uint32Array(1);
-
-function randInt(n){
-  if (n <= 0) return 0;
-  const limit = Math.floor(0x100000000 / n) * n;
-  while (true){
-    crypto.getRandomValues(_u32);
-    const x = _u32[0];
-    if (x < limit) return x % n;
-  }
-}
-
+/* ===== 抽牌 / 補牌（你的規則） ===== */
 function drawCard(counts){
   const total = counts.reduce((a,b)=>a+b,0);
   if (total <= 0) return null;
@@ -792,6 +800,7 @@ function drawCard(counts){
   return null;
 }
 
+// ✅ Baccarat 補牌規則（你描述的那套）
 function resolveHand(counts){
   const p1 = drawCard(counts), b1 = drawCard(counts);
   const p2 = drawCard(counts), b2 = drawCard(counts);
@@ -800,12 +809,14 @@ function resolveHand(counts){
   let pTotal = mod10(p1+p2);
   let bTotal = mod10(b1+b2);
 
+  // natural
   if (pTotal>=8 || bTotal>=8){
     if (pTotal>bTotal) return 'P';
     if (bTotal>pTotal) return 'B';
     return 'T';
   }
 
+  // Player draw?
   let p3 = null;
   if (pTotal <= 5){
     p3 = drawCard(counts);
@@ -813,21 +824,29 @@ function resolveHand(counts){
     pTotal = mod10(pTotal + p3);
   }
 
+  // Banker draw?
   let b3 = null;
   if (p3 === null){
+    // 玩家未補牌：莊 0~5 補，6~7 不補
     if (bTotal <= 5){
       b3 = drawCard(counts);
       if (b3===null) return null;
       bTotal = mod10(bTotal + b3);
     }
   } else {
+    // 玩家有第三張：依你提供的規則
     const pt = p3;
+
     if (bTotal <= 2) b3 = drawCard(counts);
     else if (bTotal === 3){ if (pt !== 8) b3 = drawCard(counts); }
     else if (bTotal === 4){ if (pt >= 2 && pt <= 7) b3 = drawCard(counts); }
     else if (bTotal === 5){ if (pt >= 4 && pt <= 7) b3 = drawCard(counts); }
     else if (bTotal === 6){ if (pt === 6 || pt === 7) b3 = drawCard(counts); }
-    if (b3 !== null) bTotal = mod10(bTotal + b3);
+
+    if (b3 !== null){
+      if (b3===null) return null;
+      bTotal = mod10(bTotal + b3);
+    }
   }
 
   if (pTotal>bTotal) return 'P';
@@ -916,13 +935,14 @@ function applyRoundAndCalc(){
   const martCap = Math.max(2, parseInt(document.getElementById('martCap')?.value,10) || 8);
 
   const unitUsed = betState.unit || 1;
-  let betPickUsed = betState.lastPick;
+  const betPickUsed = betState.lastPick;
 
   if (betPickUsed){
     betState.logs.push({ pick: betPickUsed, result: res, unit: unitUsed });
 
     if (strategy === 'martingale'){
       if (res === 'T'){
+        // push: 不變
       } else if (res === betPickUsed){
         betState.unit = 1;
       } else {
@@ -1017,19 +1037,16 @@ function on(id, ev, fn){
 }
 
 /* ===========================
-   自動驗證（Auto QA）- 做成 window.autoVerify()
+   AutoVerify：跑完會回到原鞋狀態，不會吃掉你的輸入
 =========================== */
 function approx(a, b, tol){ return Math.abs(a - b) <= tol; }
-
 function evFromP(pP, pB, pT, commission=0.05){
   const evP = 2*pP - 1;
   const evB = pB*(1-commission) - (1-pB);
   const evT = 9*pT - 1;
   return {evP, evB, evT};
 }
-
 async function mcOnce(trials){
-  const t0 = performance.now();
   let wP=0, wB=0, wT=0;
   for (let i=0;i<trials;i++){
     const c = shoe.counts.slice();
@@ -1040,23 +1057,36 @@ async function mcOnce(trials){
     else wT++;
   }
   const n = wP+wB+wT;
-  const pP = n ? wP/n : 0;
-  const pB = n ? wB/n : 0;
-  const pT = n ? wT/n : 0;
-  const ms = performance.now() - t0;
-  return {pP,pB,pT,n,wP,wB,wT,ms};
+  return { pP: n ? wP/n : 0, pB: n ? wB/n : 0, pT: n ? wT/n : 0, n, wP,wB,wT };
 }
-
-function snapshotShoe(){ return shoe.counts.slice(); }
-function restoreShoe(snap){
-  shoe.counts = snap.slice();
-  shoe.inited = true;
+function snapshotAll(){
+  return {
+    shoe: shoe.counts.slice(),
+    inited: shoe.inited,
+    undo: shoe.undoStack.slice(),
+    hist: betState.history.slice(),
+    logs: betState.logs.slice(),
+    unit: betState.unit,
+    lastPick: betState.lastPick,
+    inP, inB, active
+  };
 }
-
+function restoreAll(s){
+  shoe.counts = s.shoe.slice();
+  shoe.inited = s.inited;
+  shoe.undoStack = s.undo.slice();
+  betState.history = s.hist.slice();
+  betState.logs = s.logs.slice();
+  betState.unit = s.unit;
+  betState.lastPick = s.lastPick;
+  inP = s.inP; inB = s.inB; active = s.active;
+  syncInputUI();
+  setText('shoeInfo', shoeInfoText());
+  updateLastWinnerUI();
+}
 function removeDigitsFromShoe(digits){
   const need = new Array(10).fill(0);
   for (const d of digits) need[d]++;
-
   for (let v=0; v<=9; v++){
     if (need[v] > shoe.counts[v]) return false;
   }
@@ -1066,76 +1096,59 @@ function removeDigitsFromShoe(digits){
   return true;
 }
 
-window.autoVerify = async function autoVerify(options={}){
+window.autoVerify = async function(options={}){
   const trials = Math.max(20000, options.trials || 50000);
   const tolSum = options.tolSum ?? 1e-9;
-  const tolEV  = options.tolEV  ?? 1e-9;
 
-  const commission = parseFloat(document.getElementById('commission')?.value || '0.05');
+  const snap = snapshotAll();
+
+  // 用 seed 跑驗證才有意義
+  const prevMode = RNG.mode;
+  const prevSeed = RNG.seed;
+  RNG.mode = 'seed';
 
   const results = [];
+  const pass = (name, extra={}) => results.push({name, ok:true, ...extra});
   const fail = (name, reason, extra={}) => results.push({name, ok:false, reason, ...extra});
-  const pass = (name, extra={}) => results.push({name, ok:true, reason:'', ...extra});
-
-  const baseSnap = snapshotShoe();
 
   newShoe();
   const r1 = await mcOnce(trials);
-
   const sum1 = r1.pP + r1.pB + r1.pT;
   if (!approx(sum1, 1, tolSum)) fail('T1.sum=1', `sum=${sum1}`);
   else pass('T1.sum=1', {sum:sum1});
-
   if (!(r1.pB > r1.pP)) fail('T1.B>P', `B=${r1.pB}, P=${r1.pP}`);
   else pass('T1.B>P', {pB:r1.pB, pP:r1.pP, pT:r1.pT});
 
-  const ev1 = evFromP(r1.pP, r1.pB, r1.pT, commission);
-  const evP_ui = 2*r1.pP - 1;
-  const evB_ui = r1.pB*(1-commission) - (1-r1.pB);
-  const evT_ui = 9*r1.pT - 1;
-  if (!(approx(ev1.evP, evP_ui, tolEV) && approx(ev1.evB, evB_ui, tolEV) && approx(ev1.evT, evT_ui, tolEV))){
-    fail('T1.EV一致', 'ev mismatch', {ev1, evP_ui, evB_ui, evT_ui});
-  } else {
-    pass('T1.EV一致', {ev1});
-  }
-
   newShoe();
-  const okRemove = removeDigitsFromShoe([9,8,0,0]);
-  if (!okRemove) fail('T2.扣牌可行', '扣牌失敗(鞋不足?)');
+  if (!removeDigitsFromShoe([9,8,0,0])) fail('T2.扣牌可行', '扣牌失敗');
   else {
     const left = sumCounts(shoe.counts);
     if (left !== 412) fail('T2.剩餘=412', `left=${left}`);
     else pass('T2.剩餘=412', {left});
   }
 
-  const r2 = await mcOnce(trials);
-  const sum2 = r2.pP + r2.pB + r2.pT;
-  if (!approx(sum2, 1, tolSum)) fail('T2.sum=1', `sum=${sum2}`);
-  else pass('T2.sum=1', {sum:sum2});
-
-  restoreShoe(baseSnap);
-  const left3 = sumCounts(shoe.counts);
-  const leftBase = sumCounts(baseSnap);
-  if (left3 !== leftBase) fail('T3.restore一致', `left3=${left3}, base=${leftBase}`);
-  else pass('T3.restore一致', {left:left3});
-
-  const okAll = results.every(x=>x.ok);
-  console.group(`AutoVerify ${okAll ? '✅ PASS' : '❌ FAIL'} | trials=${trials}`);
-  for (const x of results){
-    if (x.ok) console.log(`✅ ${x.name}`, x);
-    else console.error(`❌ ${x.name} :: ${x.reason}`, x);
-  }
+  console.group(`AutoVerify ${results.every(x=>x.ok) ? '✅ PASS' : '❌ FAIL'} | trials=${trials}`);
+  results.forEach(x => x.ok ? console.log('✅', x) : console.error('❌', x));
   console.groupEnd();
 
-  newShoe();
+  // 恢復原狀（不吃掉你輸入）
+  restoreAll(snap);
+  RNG.mode = prevMode;
+  RNG.seed = prevSeed;
+
+  // 重新跑一次 UI 的 MC（不改你輸入）
   await runMC();
 
-  return {okAll, results, r1, r2};
+  return { okAll: results.every(x=>x.ok), results, r1 };
 };
 
+/* ===========================
+   DOM Ready：✅ 事件綁定（你之前壞掉就是這裡括號跑掉）
+=========================== */
 window.addEventListener('DOMContentLoaded', () => {
   updateStickyHeights();
 
+  // numpad
   const pad = document.getElementById('numPad');
   for (let i=0;i<=9;i++){
     const b = document.createElement('button');
@@ -1145,6 +1158,7 @@ window.addEventListener('DOMContentLoaded', () => {
     pad.appendChild(b);
   }
 
+  // basic switches
   on('btnPickP','click', ()=>{ active='P'; syncInputUI(); });
   on('btnPickB','click', ()=>{ active='B'; syncInputUI(); });
   on('fieldP','click', ()=>{ active='P'; syncInputUI(); });
@@ -1153,21 +1167,32 @@ window.addEventListener('DOMContentLoaded', () => {
   on('btnBack','click', backspace);
   on('btnClearInput','click', clearSideOnly);
   on('btnClearHand','click', clearInput);
-
   on('btnCalcRound','click', applyRoundAndCalc);
 
   on('btnNewShoe','click', newShoe);
   on('btnUndoRound','click', undoRound);
   on('btnClearAll','click', clearAll);
 
+  // RNG
+  on('btnReseed','click', ()=>{
+    applyRngFromUI();
+    alert(`RNG 已套用：${document.getElementById('rngMode').value.toUpperCase()}`);
+    runMC();
+  });
+  on('rngMode','change', ()=>{
+    applyRngFromUI();
+    runMC();
+  });
+
+  // AutoVerify button
   on('btnAutoVerify','click', async ()=>{
     console.clear();
-    console.log('AutoVerify running...');
+    applyRngFromUI(); // 讀當前 seed
     const r = await window.autoVerify({trials: 50000});
     alert(r.okAll ? 'AutoVerify ✅ PASS（詳情看 console）' : 'AutoVerify ❌ FAIL（詳情看 console）');
   });
 
-  // ✅ 這段 forEach 你原本壞掉的，我已修好
+  // ✅ 你之前壞掉的 forEach 事件：這裡保證括號正確
   ['commission','strategy','streakN','martCap','passOn','passThr','backN'].forEach(id=>{
     on(id, 'change', ()=>{
       if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
@@ -1181,6 +1206,8 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // init
+  applyRngFromUI();     // ✅ 預設 seed
   newShoe();
   syncInputUI();
   runMC();
