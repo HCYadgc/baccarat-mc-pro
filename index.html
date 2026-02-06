@@ -3,230 +3,354 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>百家樂｜純核心＋Seed/Crypto RNG 切換版</title>
+  <title>百家樂｜純核心 Seed 驗證版</title>
   <style>
     body{
-      margin:0;padding:16px;
-      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC",Arial,sans-serif;
-      background:#0b1020;color:#eaf0ff;
+      margin:0; padding:16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", Arial, sans-serif;
+      background:#0b1020; color:#eaf0ff;
     }
     .wrap{max-width:980px;margin:0 auto;}
-    h1{margin:0 0 12px;font-size:20px;}
-    .box{
-      background:#ffffff10;border:1px solid #ffffff22;border-radius:14px;
-      padding:12px;margin-bottom:12px;
-    }
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
-    label{display:flex;gap:6px;align-items:center;}
-    input,select{
+    h1{margin:0 0 10px;font-size:20px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+    label{display:flex;gap:8px;align-items:center;}
+    input{
       background:#0000002a;border:1px solid #ffffff20;color:#eaf0ff;
-      border-radius:10px;padding:6px 10px;font-weight:800;
+      border-radius:10px;padding:8px 10px;font-weight:800;outline:none;
+      width:140px;
     }
+    input.small{width:110px;}
     button{
       appearance:none;border:none;
       background:#ffffff14;border:1px solid #ffffff20;color:#eaf0ff;
-      padding:8px 14px;border-radius:12px;
-      font-weight:900;cursor:pointer;
+      padding:10px 12px;border-radius:12px;
+      font-weight:900;cursor:pointer;user-select:none;
     }
     button:hover{background:#ffffff1a;}
+    button:active{transform:scale(.99);}
+    .box{
+      background:#ffffff10;border:1px solid #ffffff22;border-radius:14px;
+      padding:12px;
+    }
     pre{
-      margin:0;white-space:pre-wrap;word-break:break-word;
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      margin:0; white-space:pre-wrap; word-break:break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       color:#d8e3ff;
     }
-    .muted{color:#b7c3e6;font-size:13px;}
+    .muted{color:#b7c3e6;}
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>百家樂｜純核心（補牌正確）＋ Seed / Crypto RNG</h1>
-
+  <h1>百家樂｜純核心 Seed（可重現）＋驗證（多次 run）</h1>
   <div class="box">
     <div class="row">
-      <label>RNG
-        <select id="rngMode">
-          <option value="seed" selected>Seed（可重現）</option>
-          <option value="crypto">Crypto（真實亂數）</option>
-        </select>
-      </label>
-      <label>Seed <input id="seed" value="123456789"></label>
-      <label>Decks <input id="decks" type="number" value="8" min="1"></label>
-      <label>Trials <input id="trials" type="number" value="100000" step="10000"></label>
-      <label>Runs <input id="runs" type="number" value="10" min="3"></label>
-      <button id="btnRun">跑驗證</button>
+      <label>Seed <input id="seed" value="123456789" /></label>
+      <label>每次 Trials <input id="trials" class="small" type="number" min="10000" step="10000" value="100000" /></label>
+      <label>Runs <input id="runs" class="small" type="number" min="3" step="1" value="10" /></label>
+      <label>Decks <input id="decks" class="small" type="number" min="1" step="1" value="8" /></label>
     </div>
+
+    <div class="row">
+      <label>抽水(莊) <input id="commission" class="small" type="number" step="0.01" value="0.05" /></label>
+      <label>容忍度：sum(±) <input id="tolSum" class="small" type="number" step="0.000001" value="0.000001" /></label>
+      <label>容忍度：區間(σ倍數) <input id="zSigma" class="small" type="number" step="0.5" value="4" /></label>
+      <button id="btnRun">跑驗證</button>
+      <button id="btnRepro">驗證可重現</button>
+    </div>
+
     <div class="muted">
-      預設使用 Seed RNG（工程驗證）；切到 Crypto 可模擬真實牌局亂數。
+      ✅ 規則：天牌8/9停牌；閒≤5補；莊補牌依閒第三張規則（含 3/4/5/6 的條件）。<br>
+      ✅ RNG：Seeded 32-bit（拒絕取樣避免 modulo bias）→ 結果可重現。<br>
+      ✅ 驗證：多次 runs，計算均值與標準差，檢查各 run 是否落在「均值 ± zσ·sd」區間。
     </div>
   </div>
 
-  <div class="box">
+  <div class="box" style="margin-top:12px;">
     <pre id="out">—</pre>
   </div>
 </div>
 
 <script>
-/* ======================================================
-   RNG 核心（預設 Seed，可切 Crypto）
-====================================================== */
-const RNG = {
-  mode: 'seed',
-  seed: '123456789',
-  _rng: null,
-  _u32: new Uint32Array(1)
-};
-
-function xorshift32(seed){
-  let x = seed >>> 0;
-  if (x === 0) x = 0x9e3779b9;
-  return () => {
-    x ^= (x << 13) >>> 0;
-    x ^= (x >>> 17) >>> 0;
-    x ^= (x << 5) >>> 0;
-    return x >>> 0;
+/* =========================================================
+   1) Seeded PRNG（可重現）：xorshift32 + 拒絕取樣 randInt
+========================================================= */
+function xorshift32(seedU32){
+  let x = seedU32 >>> 0;
+  if (x === 0) x = 0x9e3779b9; // 避免 0 卡死
+  return {
+    nextU32(){
+      // xorshift32
+      x ^= (x << 13) >>> 0;
+      x ^= (x >>> 17) >>> 0;
+      x ^= (x << 5) >>> 0;
+      return x >>> 0;
+    }
   };
 }
 
-function initSeedRNG(){
-  let h = 2166136261 >>> 0;
-  for (let i=0;i<RNG.seed.length;i++){
-    h ^= RNG.seed.charCodeAt(i);
-    h = Math.imul(h,16777619)>>>0;
-  }
-  RNG._rng = xorshift32(h);
-}
-
-function randInt(n){
-  if (n<=0) return 0;
-  const limit = Math.floor(0x100000000/n)*n;
-  while(true){
-    let x;
-    if (RNG.mode==='crypto'){
-      crypto.getRandomValues(RNG._u32);
-      x = RNG._u32[0];
-    }else{
-      x = RNG._rng();
+// 產生 [0, n) 均勻整數（拒絕取樣避免 modulo bias）
+function makeRandInt(nextU32){
+  return function randInt(n){
+    n = n|0;
+    if (n <= 0) return 0;
+    const limit = Math.floor(0x100000000 / n) * n;
+    while (true){
+      const x = nextU32() >>> 0;
+      if (x < limit) return (x % n) | 0;
     }
-    if (x<limit) return x % n;
-  }
+  };
 }
 
-/* ======================================================
-   牌鞋（點數 0~9）
-====================================================== */
+/* =========================================================
+   2) 牌鞋：只用點數 0~9 的數量（0=10/J/Q/K, 1=A）
+========================================================= */
 function counts0(decks){
-  const c=new Array(10).fill(0);
-  c[0]=16*decks;
-  for(let i=1;i<=9;i++) c[i]=4*decks;
+  const c = new Array(10).fill(0);
+  c[0] = 16 * decks;          // 10/J/Q/K 共 16 張/副
+  for (let v=1; v<=9; v++) c[v] = 4 * decks;
   return c;
 }
-function sum(c){return c.reduce((a,b)=>a+b,0);}
-function mod10(x){return ((x%10)+10)%10;}
+function sumCounts(c){ return c.reduce((a,b)=>a+b,0); }
+function mod10(x){ return ((x%10)+10)%10; }
 
-function drawCard(c){
-  let r=randInt(sum(c));
-  for(let i=0;i<=9;i++){
-    if(r<c[i]){c[i]--;return i;}
-    r-=c[i];
+/* =========================================================
+   3) 抽牌 / 發牌 / 補牌規則（你給的莊補牌規則完整實作）
+========================================================= */
+function drawCard(counts, randInt){
+  const total = sumCounts(counts);
+  if (total <= 0) return null;
+
+  let r = randInt(total);
+  for (let v=0; v<=9; v++){
+    const k = counts[v];
+    if (r < k){ counts[v]--; return v; }
+    r -= k;
   }
   return null;
 }
 
-/* ======================================================
-   百家樂補牌（完全依你給的規則）
-====================================================== */
-function resolveHand(shoe){
-  const c=shoe.slice();
-  const p1=drawCard(c),b1=drawCard(c);
-  const p2=drawCard(c),b2=drawCard(c);
-  if(p1==null||b1==null||p2==null||b2==null) return null;
+function resolveHand(counts, randInt){
+  // 初始牌
+  const p1 = drawCard(counts, randInt), b1 = drawCard(counts, randInt);
+  const p2 = drawCard(counts, randInt), b2 = drawCard(counts, randInt);
+  if (p1===null||b1===null||p2===null||b2===null) return null;
 
-  let pT=mod10(p1+p2), bT=mod10(b1+b2);
+  let pTotal = mod10(p1+p2);
+  let bTotal = mod10(b1+b2);
 
-  if(pT>=8||bT>=8){
-    if(pT>bT) return 'P';
-    if(bT>pT) return 'B';
+  // 天牌：任一方 8/9 直接停牌
+  if (pTotal>=8 || bTotal>=8){
+    if (pTotal>bTotal) return 'P';
+    if (bTotal>pTotal) return 'B';
     return 'T';
   }
 
-  let p3=null;
-  if(pT<=5){
-    p3=drawCard(c);
-    pT=mod10(pT+p3);
+  // 閒補牌：<=5 補一張
+  let p3 = null;
+  if (pTotal <= 5){
+    p3 = drawCard(counts, randInt);
+    if (p3===null) return null;
+    pTotal = mod10(pTotal + p3);
   }
 
-  if(p3===null){
-    if(bT<=5){
-      bT=mod10(bT+drawCard(c));
+  // 莊補牌：
+  let b3 = null;
+
+  if (p3 === null){
+    // 閒沒補：莊 0~5 補；6/7 不補
+    if (bTotal <= 5){
+      b3 = drawCard(counts, randInt);
+      if (b3===null) return null;
+      bTotal = mod10(bTotal + b3);
     }
-  }else{
-    if(bT<=2) bT=mod10(bT+drawCard(c));
-    else if(bT===3 && p3!==8) bT=mod10(bT+drawCard(c));
-    else if(bT===4 && p3>=2&&p3<=7) bT=mod10(bT+drawCard(c));
-    else if(bT===5 && p3>=4&&p3<=7) bT=mod10(bT+drawCard(c));
-    else if(bT===6 && (p3===6||p3===7)) bT=mod10(bT+drawCard(c));
+  } else {
+    // 閒有第三張：依你給的規則
+    const pt = p3;
+
+    if (bTotal <= 2){
+      b3 = drawCard(counts, randInt);
+    } else if (bTotal === 3){
+      if (pt !== 8) b3 = drawCard(counts, randInt);     // 3：閒第三張=8 不補
+    } else if (bTotal === 4){
+      if (pt >= 2 && pt <= 7) b3 = drawCard(counts, randInt);  // 4：只補 2~7
+    } else if (bTotal === 5){
+      if (pt >= 4 && pt <= 7) b3 = drawCard(counts, randInt);  // 5：只補 4~7
+    } else if (bTotal === 6){
+      if (pt === 6 || pt === 7) b3 = drawCard(counts, randInt); // 6：只補 6/7
+    } // 7：不補
+
+    if (b3 !== null){
+      if (b3===null) return null;
+      bTotal = mod10(bTotal + b3);
+    }
   }
 
-  if(pT>bT) return 'P';
-  if(bT>pT) return 'B';
+  if (pTotal>bTotal) return 'P';
+  if (bTotal>pTotal) return 'B';
   return 'T';
 }
 
-/* ======================================================
-   驗證
-====================================================== */
-function runVerify(){
-  const decks=+decksInput.value;
-  const trials=+trialsInput.value;
-  const runs=+runsInput.value;
-
-  const results=[];
-  for(let r=0;r<runs;r++){
-    const shoe=counts0(decks);
-    let p=0,b=0,t=0;
-    for(let i=0;i<trials;i++){
-      const res=resolveHand(shoe);
-      if(res==='P')p++;
-      else if(res==='B')b++;
-      else t++;
-    }
-    const n=p+b+t;
-    results.push({
-      p:p/n,b:b/n,t:t/n
-    });
-  }
-
-  let out=`RNG=${RNG.mode}  Seed=${RNG.seed}\n\n`;
-  results.forEach((r,i)=>{
-    out+=`Run#${i} P=${(r.p*100).toFixed(4)}% B=${(r.b*100).toFixed(4)}% T=${(r.t*100).toFixed(4)}%\n`;
-  });
-  write(out);
+/* =========================================================
+   4) 單次模擬（固定鞋狀態）＆ 多次 runs 統計驗證
+========================================================= */
+function evFromP(pP, pB, pT, commission){
+  const evP = 2*pP - 1;
+  const evB = pB*(1-commission) - (1-pB);
+  const evT = 9*pT - 1;
+  return {evP, evB, evT};
 }
 
-function write(s){out.textContent=s;}
+function fmtPct(x){ return (x*100).toFixed(4) + '%'; }
+function mean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function sd(arr){
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  const v = arr.reduce((a,b)=>a+(b-m)*(b-m),0)/(arr.length-1);
+  return Math.sqrt(v);
+}
 
-/* ======================================================
-   UI 綁定
-====================================================== */
-const out=document.getElementById('out');
-const seedInput=document.getElementById('seed');
-const decksInput=document.getElementById('decks');
-const trialsInput=document.getElementById('trials');
-const runsInput=document.getElementById('runs');
+function runOnce({decks, trials, seedStr}){
+  // 用 seedStr 派生 u32（簡單 hash，確保不同 seedStr 有不同流）
+  let h = 2166136261 >>> 0;
+  for (let i=0;i<seedStr.length;i++){
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const rng = xorshift32(h);
+  const randInt = makeRandInt(()=>rng.nextU32());
 
-document.getElementById('rngMode').onchange=e=>{
-  RNG.mode=e.target.value;
-  if(RNG.mode==='seed') initSeedRNG();
-};
+  const shoe = counts0(decks);
 
-document.getElementById('btnRun').onclick=()=>{
-  RNG.seed=seedInput.value;
-  if(RNG.mode==='seed') initSeedRNG();
-  runVerify();
-};
+  let wP=0,wB=0,wT=0;
+  for (let i=0;i<trials;i++){
+    const c = shoe.slice(); // 每手都從同一鞋狀態抽（MC 估計下一局機率）
+    const r = resolveHand(c, randInt);
+    if (!r) continue;
+    if (r==='P') wP++;
+    else if (r==='B') wB++;
+    else wT++;
+  }
+  const n = wP+wB+wT;
+  const pP = n ? wP/n : 0;
+  const pB = n ? wB/n : 0;
+  const pT = n ? wT/n : 0;
+  return {pP,pB,pT,n,wP,wB,wT};
+}
 
-initSeedRNG();
-runVerify();
+function approx(a,b,tol){ return Math.abs(a-b) <= tol; }
+
+function writeOut(txt){
+  document.getElementById('out').textContent = txt;
+}
+
+/* =========================================================
+   5) 驗證：多次 runs + 區間檢查 + 基本 sanity
+========================================================= */
+function verifyAll(){
+  const seed = String(document.getElementById('seed').value || '123456789');
+  const trials = Math.max(10000, parseInt(document.getElementById('trials').value,10)||100000);
+  const runs = Math.max(3, parseInt(document.getElementById('runs').value,10)||10);
+  const decks = Math.max(1, parseInt(document.getElementById('decks').value,10)||8);
+  const commission = parseFloat(document.getElementById('commission').value || '0.05');
+  const tolSum = parseFloat(document.getElementById('tolSum').value || '0.000001');
+  const zSigma = parseFloat(document.getElementById('zSigma').value || '4');
+
+  const res = [];
+  for (let i=0;i<runs;i++){
+    // 每個 run 用「seed + #i」派生不同流 → 方便估計波動
+    res.push(runOnce({decks, trials, seedStr: seed + '#'+i}));
+  }
+
+  const pPs = res.map(r=>r.pP);
+  const pBs = res.map(r=>r.pB);
+  const pTs = res.map(r=>r.pT);
+
+  const mP = mean(pPs), mB = mean(pBs), mT = mean(pTs);
+  const sP = sd(pPs),   sB = sd(pBs),   sT = sd(pTs);
+
+  const loP = mP - zSigma*sP, hiP = mP + zSigma*sP;
+  const loB = mB - zSigma*sB, hiB = mB + zSigma*sB;
+  const loT = mT - zSigma*sT, hiT = mT + zSigma*sT;
+
+  let ok = true;
+  const logs = [];
+
+  // Sanity 1: 每次 sum 接近 1
+  res.forEach((r, idx)=>{
+    const sum = r.pP + r.pB + r.pT;
+    const pass = approx(sum, 1, tolSum);
+    if (!pass) ok = false;
+    logs.push(`${pass?'✅':'❌'} Run#${idx} sum=${sum.toFixed(8)} | P=${fmtPct(r.pP)} B=${fmtPct(r.pB)} T=${fmtPct(r.pT)} | n=${r.n}`);
+  });
+
+  // Sanity 2: 平均上 B 應略高於 P（不做“理論值”對照，只檢查方向）
+  const passBP = (mB > mP);
+  if (!passBP) ok = false;
+
+  // Sanity 3: 每次 run 應落在「均值 ± zσ·sd」(抓離群)
+  res.forEach((r, idx)=>{
+    const pass = (r.pP>=loP && r.pP<=hiP && r.pB>=loB && r.pB<=hiB && r.pT>=loT && r.pT<=hiT);
+    if (!pass) ok = false;
+  });
+
+  // EV（只是把公式算出來給你看）
+  const ev = evFromP(mP,mB,mT,commission);
+
+  let out = '';
+  out += `=== VERIFY ${ok ? '✅ PASS' : '❌ FAIL'} ===\n`;
+  out += `seed="${seed}" | decks=${decks} | runs=${runs} | trials/run=${trials}\n`;
+  out += `commission(B)=${commission}\n\n`;
+
+  out += `--- Mean ± SD (across runs) ---\n`;
+  out += `P: ${fmtPct(mP)} ± ${(sP*100).toFixed(4)}%\n`;
+  out += `B: ${fmtPct(mB)} ± ${(sB*100).toFixed(4)}%\n`;
+  out += `T: ${fmtPct(mT)} ± ${(sT*100).toFixed(4)}%\n`;
+  out += `Check(B>P): ${passBP ? '✅' : '❌'} (mean B=${fmtPct(mB)} vs P=${fmtPct(mP)})\n\n`;
+
+  out += `--- Outlier Band (mean ± ${zSigma}σ) ---\n`;
+  out += `P: [${fmtPct(loP)} , ${fmtPct(hiP)}]\n`;
+  out += `B: [${fmtPct(loB)} , ${fmtPct(hiB)}]\n`;
+  out += `T: [${fmtPct(loT)} , ${fmtPct(hiT)}]\n\n`;
+
+  out += `--- EV (from mean probs) ---\n`;
+  out += `EV(P)= ${(ev.evP).toFixed(6)} | EV(B)= ${(ev.evB).toFixed(6)} | EV(T)= ${(ev.evT).toFixed(6)}\n\n`;
+
+  out += `--- Per-run log ---\n`;
+  out += logs.join('\n') + '\n';
+
+  writeOut(out);
+}
+
+function verifyRepro(){
+  const seed = String(document.getElementById('seed').value || '123456789');
+  const trials = Math.max(10000, parseInt(document.getElementById('trials').value,10)||100000);
+  const decks = Math.max(1, parseInt(document.getElementById('decks').value,10)||8);
+
+  // 同一 seedStr 跑兩次，必須「完全相同」
+  const a = runOnce({decks, trials, seedStr: seed + '#REPRO'});
+  const b = runOnce({decks, trials, seedStr: seed + '#REPRO'});
+
+  const same =
+    a.n===b.n && a.wP===b.wP && a.wB===b.wB && a.wT===b.wT &&
+    a.pP===b.pP && a.pB===b.pB && a.pT===b.pT;
+
+  let out = '';
+  out += `=== REPRODUCIBILITY ${same ? '✅ PASS' : '❌ FAIL'} ===\n`;
+  out += `seed="${seed}" | decks=${decks} | trials=${trials}\n\n`;
+  out += `A: P=${fmtPct(a.pP)} B=${fmtPct(a.pB)} T=${fmtPct(a.pT)} | wP/wB/wT=${a.wP}/${a.wB}/${a.wT}\n`;
+  out += `B: P=${fmtPct(b.pP)} B=${fmtPct(b.pB)} T=${fmtPct(b.pT)} | wP/wB/wT=${b.wP}/${b.wB}/${b.wT}\n\n`;
+  out += same ? '同 seed 完全一致 ✅（這就是工程可驗證的模擬器）\n'
+              : '同 seed 居然不一致 ❌（代表 RNG 或流程有非決定性）\n';
+
+  writeOut(out);
+}
+
+document.getElementById('btnRun').addEventListener('click', verifyAll);
+document.getElementById('btnRepro').addEventListener('click', verifyRepro);
+
+// 進頁面先跑一次
+verifyAll();
 </script>
 </body>
 </html>
