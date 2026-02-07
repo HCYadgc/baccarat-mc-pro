@@ -387,6 +387,12 @@
             <option value="martingale">馬丁倍壓（輸就倍壓，上限封頂）</option>
           </select>
 
+          <!-- ✅ 新增：反向建議 -->
+          <label class="chip" title="把建議與實際下注反向（莊↔閒）">
+            <input id="invertOn" type="checkbox">
+            反向建議
+          </label>
+
           <span class="muted">追路/反向 需要連續</span>
           <input id="streakN" type="number" min="2" step="1" value="2" style="width:80px;">
 
@@ -529,6 +535,32 @@ function setText(id, txt){ const el = document.getElementById(id); if (el) el.te
 function fmtPct(x){ return (x*100).toFixed(3) + '%'; }
 function sideName(s){ return s==='B'?'莊':s==='P'?'閒':s==='T'?'和':s==='PASS'?'PASS':'—'; }
 function mod10(x){ return ((x%10)+10)%10; }
+
+/* ===========================
+   ✅ 反向建議（顯示 + 實際下注 pick）
+=========================== */
+function isInvertOn(){
+  return !!document.getElementById('invertOn')?.checked;
+}
+function invertSidePick(s){
+  if (s === 'B') return 'P';
+  if (s === 'P') return 'B';
+  return s; // T / null / 其他
+}
+function invertDisplayText(txt){
+  if (!txt) return txt;
+  if (txt === 'PASS' || txt === '—') return txt;
+
+  // 和/莊 ↔ 和/閒
+  if (txt === '和/莊') return '和/閒';
+  if (txt === '和/閒') return '和/莊';
+
+  // 莊 ↔ 閒
+  if (txt === '莊') return '閒';
+  if (txt === '閒') return '莊';
+
+  return txt;
+}
 
 /* ===========================
    RNG：Crypto / Seed（可重現）
@@ -734,11 +766,22 @@ function updateRandomZoneAlert(){
   }
 }
 
+/* ✅ 改這裡：反向會同時影響 顯示 + 實際下注 pick */
 function updateBetUI(pP, pB, pT){
-  const out = pickByStrategy(pP, pB, pT);
-  setText('betLine', out.display);
-  setText('scoreOnly', out.display);
-  betState.lastPick = out.betPick ?? null;
+  const out0 = pickByStrategy(pP, pB, pT);
+
+  let display = out0.display;
+  let betPick = out0.betPick ?? null;
+
+  if (isInvertOn()){
+    display = invertDisplayText(display);
+    betPick = invertSidePick(betPick);
+  }
+
+  setText('betLine', display);
+  setText('scoreOnly', display);
+  betState.lastPick = betPick;
+
   updateRandomZoneAlert();
 }
 
@@ -1192,14 +1235,14 @@ window.addEventListener('DOMContentLoaded', () => {
     alert(r.okAll ? 'AutoVerify ✅ PASS（詳情看 console）' : 'AutoVerify ❌ FAIL（詳情看 console）');
   });
 
-  // ✅ 你之前壞掉的 forEach 事件：這裡保證括號正確
-  ['commission','strategy','streakN','martCap','passOn','passThr','backN'].forEach(id=>{
+  // ✅ 設定變更即時更新（含反向建議）
+  ['commission','strategy','streakN','martCap','passOn','passThr','backN','invertOn'].forEach(id=>{
     on(id, 'change', ()=>{
       if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
       calcBacktest(document.getElementById('backN')?.value || 30);
     });
     on(id, 'input', ()=>{
-      if (id==='passThr' || id==='backN'){
+      if (id==='passThr' || id==='backN' || id==='invertOn'){
         if (lastCalc.has) updateBetUI(lastCalc.pP, lastCalc.pB, lastCalc.pT);
         calcBacktest(document.getElementById('backN')?.value || 30);
       }
